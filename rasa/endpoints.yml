@@ -1,0 +1,9 @@
+# Action server URL and conversation storage.
+
+action_endpoint:
+  url: "http://localhost:5055/webhook"
+
+# Conversations go to RASA_TRACKER_STORE_URL, else rasa/logs/trackers.db.
+# Replay one with: python show_conversation.py <uuid>
+tracker_store:
+  type: "tracker_store.ConversationSQLTrackerStore"
