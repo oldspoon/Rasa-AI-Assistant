@@ -1,0 +1,144 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - thank_you
+  - introduce_self
+  - ask_lecture_days
+  - ask_practical_days
+  - ask_campus
+  - ask_time
+  - ask_subject
+  - ask_room
+  - ask_teacher
+  - ask_teacher_office
+  - ask_teacher_hours
+  - book_teacher_slot
+  - ask_teacher_contact
+  - ask_library_location
+  - ask_books
+  - borrow_book
+  - ask_borrowed_books
+  - ask_support_lectures
+  - book_support_lecture
+  - ask_my_support_lectures
+  - ask_appointments
+  - ask_timetable
+  - ask_all_details
+  - ask_explain
+  - ask_parking_arrears
+  - pay_by_phone
+  - pay_at_infodesk
+  - out_of_scope
+
+entities:
+  - first_name
+  - last_name
+  - day
+  - time
+  - book
+  - format
+  - session
+
+slots:
+  first_name:
+    type: text
+    mappings:
+      - type: from_entity
+        entity: first_name
+
+  last_name:
+    type: text
+    mappings:
+      - type: from_entity
+        entity: last_name
+
+responses:
+  utter_greet:
+    - text: "Hello! I'm Octopi, your Campus Attendance Assistant. Welcome to the Campus Attendance System. Ask me about your schedule - lecture or practical days, campus, time, subject, room your teacher or the library. I can also show your teacher's contact details and office hours, book a visit, lend you books and book extra support lectures. If I don't know you yet, tell me your first and last name (e.g. 'My name is Alice Johnson')."
+
+  utter_goodbye:
+    - text: "Goodbye! Have a great session on campus!"
+
+  utter_youre_welcome:
+    - text: "You're welcome! Let me know if you need anything else about your schedule."
+
+  utter_ask_name:
+    - text: "Could you please provide your first name and last name?"
+
+  utter_student_not_found:
+    - text: "I'm sorry, I couldn't find a student with the name {first_name} {last_name} in our attendance records. Please check your name and try again."
+
+  utter_student_found:
+    - text: "Great! I found your record, {first_name} {last_name}. You can now ask me about your schedule. For example: 'What days do I have lectures?', 'What days do I have practicals?', or 'Give me all my schedule details.'"
+
+  utter_no_student_loaded:
+    - text: "It seems I don't have your information yet. Please introduce yourself first by telling me your first name and last name."
+
+  utter_out_of_scope:
+    - text: "I'm sorry, I can only help with campus attendance and schedule information. Please ask me something related to your timetable."
+
+  utter_explain:
+    - text: |-
+        I'm Octopi, the Campus Attendance Assistant. Here is what I can do, in plain words:
+
+        1. **Tell me who you are.** Type your first and last name, for example 'My name is Alice Johnson'.
+        2. **Your timetable.** Ask about your lecture or practical days, time, room, campus or subject, or say 'Give me all my schedule details'.
+        3. **Your teacher.** Ask 'Who is my teacher?', 'How can I contact my teacher?' or 'When can I visit my teacher?', then book a visit, for example 'Book Tuesday at 14:30'.
+        4. **The library.** Ask 'Where is the library?', then 'Recommend books' and borrow one digitally or collect it in person.
+        5. **Appointments and timetable.** Ask 'Show my appointments' for your booked teacher visits and support lectures, or 'Show my timetable' for your whole week.
+        6. **Extra support.** Ask 'What support lectures are available?' to see sessions run by lab assistants, then book a seat.
+        7. **What you owe.** Ask 'Do I have any parking arrears?' or 'Show my borrowed books' to check fines.
+
+        Just type your question like a text message, tap the buttons I show, or use the microphone to speak.
+
+  utter_default:
+    - text: "I didn't quite understand that. You can ask me about your lecture or practical days, campus location, time, subject, room number, how to contact or visit your teacher, the library, borrowing books, or your fines. Say 'help' for a short guide."
+
+  utter_pay_by_phone:
+    - text: "To pay by phone, call the parking payment line on **020 7946 0321**. Have your vehicle's licence plate and the date of the charge ready."
+
+  utter_visit_infodesk:
+    - text: "To pay in person, visit the **InfoDesk** on your campus. Bring your vehicle's licence plate and the date of the charge."
+
+  utter_schedule_incomplete:
+    - text: "I found your record, {first_name}, but your weekly schedule is incomplete, so I can't answer that yet. Please contact the attendance office."
+
+  utter_records_unavailable:
+    - text: "I couldn't reach the attendance records just now. Please try again in a moment."
+
+  utter_office_hours_unavailable:
+    - text: "I found your teacher, {teacher_name}, but no office hours are published yet. Please contact the attendance office."
+
+  utter_parking_unavailable:
+    - text: "I couldn't check your parking arrears just now. Please try again in a moment."
+
+actions:
+  - action_lookup_student
+  - action_answer_lecture_days
+  - action_answer_practical_days
+  - action_answer_campus
+  - action_answer_time
+  - action_answer_subject
+  - action_answer_room
+  - action_answer_teacher
+  - action_answer_teacher_office
+  - action_answer_teacher_hours
+  - action_book_teacher_slot
+  - action_answer_teacher_contact
+  - action_answer_library_location
+  - action_suggest_books
+  - action_borrow_book
+  - action_check_borrowed_books
+  - action_list_support_lectures
+  - action_book_support_lecture
+  - action_check_support_bookings
+  - action_list_appointments
+  - action_show_timetable
+  - action_answer_all_details
+  - action_check_parking_arrears
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
