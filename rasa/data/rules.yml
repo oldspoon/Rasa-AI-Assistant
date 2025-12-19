@@ -1,0 +1,108 @@
+version: "3.1"
+
+rules:
+
+- rule: Say goodbye anytime the user says goodbye
+  steps:
+    - intent: goodbye
+    - action: utter_goodbye
+
+- rule: Respond politely to a thank you
+  steps:
+    - intent: thank_you
+    - action: utter_youre_welcome
+
+- rule: Respond to questions outside the bot's scope
+  steps:
+    - intent: out_of_scope
+    - action: utter_out_of_scope
+
+- rule: Explain what the bot is and how to use it
+  steps:
+    - intent: ask_explain
+    - action: utter_explain
+
+- rule: Say who teaches the student
+  steps:
+    - intent: ask_teacher
+    - action: action_answer_teacher
+
+- rule: Say where the teacher's office is
+  steps:
+    - intent: ask_teacher_office
+    - action: action_answer_teacher_office
+
+- rule: List the teacher's free office hours
+  steps:
+    - intent: ask_teacher_hours
+    - action: action_answer_teacher_hours
+
+- rule: Book an office-hour slot with the teacher
+  steps:
+    - intent: book_teacher_slot
+    - action: action_book_teacher_slot
+
+- rule: Ask the user to rephrase when NLU confidence is low
+  steps:
+    - intent: nlu_fallback
+    - action: utter_default
+
+- rule: Give the pay-by-phone details
+  steps:
+    - intent: pay_by_phone
+    - action: utter_pay_by_phone
+
+- rule: Say how to pay at the InfoDesk
+  steps:
+    - intent: pay_at_infodesk
+    - action: utter_visit_infodesk
+
+- rule: Say how to contact the teacher
+  steps:
+    - intent: ask_teacher_contact
+    - action: action_answer_teacher_contact
+
+- rule: Say where the library is
+  steps:
+    - intent: ask_library_location
+    - action: action_answer_library_location
+
+- rule: Recommend books for the student's subject
+  steps:
+    - intent: ask_books
+    - action: action_suggest_books
+
+- rule: Borrow a book
+  steps:
+    - intent: borrow_book
+    - action: action_borrow_book
+
+- rule: Check borrowed books and fines
+  steps:
+    - intent: ask_borrowed_books
+    - action: action_check_borrowed_books
+
+- rule: List the extra support lectures
+  steps:
+    - intent: ask_support_lectures
+    - action: action_list_support_lectures
+
+- rule: Book an extra support lecture
+  steps:
+    - intent: book_support_lecture
+    - action: action_book_support_lecture
+
+- rule: Check booked support lectures
+  steps:
+    - intent: ask_my_support_lectures
+    - action: action_check_support_bookings
+
+- rule: List booked appointments
+  steps:
+    - intent: ask_appointments
+    - action: action_list_appointments
+
+- rule: Show the full timetable
+  steps:
+    - intent: ask_timetable
+    - action: action_show_timetable
