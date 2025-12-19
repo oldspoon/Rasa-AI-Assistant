@@ -1,0 +1,19 @@
+version: "3.1"
+
+stories:
+- story: student borrows a book in person
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Mia"
+        - last_name: "Thomas"
+    - action: action_lookup_student
+    - intent: ask_books
+    - action: action_suggest_books
+    - intent: borrow_book
+      entities:
+        - book: "3"
+        - format: "in person"
+    - action: action_borrow_book
+    - intent: ask_borrowed_books
+    - action: action_check_borrowed_books

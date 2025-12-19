@@ -1,0 +1,12 @@
+version: "3.1"
+
+stories:
+- story: student finds the library
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Carol"
+        - last_name: "Williams"
+    - action: action_lookup_student
+    - intent: ask_library_location
+    - action: action_answer_library_location

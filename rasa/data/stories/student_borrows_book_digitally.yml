@@ -1,0 +1,21 @@
+version: "3.1"
+
+stories:
+- story: student borrows a book digitally
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - intent: ask_books
+    - action: action_suggest_books
+    - intent: borrow_book
+      entities:
+        - book: "2"
+    - action: action_borrow_book
+    - intent: borrow_book
+      entities:
+        - book: "2"
+        - format: "digital"
+    - action: action_borrow_book

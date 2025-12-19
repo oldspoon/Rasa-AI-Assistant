@@ -1,0 +1,7 @@
+version: "3.1"
+
+stories:
+- story: student asks about borrowed books without introducing
+  steps:
+    - intent: ask_borrowed_books
+    - action: action_check_borrowed_books
