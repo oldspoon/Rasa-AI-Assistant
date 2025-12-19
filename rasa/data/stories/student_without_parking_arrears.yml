@@ -1,0 +1,13 @@
+# Student with no parking arrears
+version: "3.1"
+
+stories:
+- story: student without parking arrears
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - intent: ask_parking_arrears
+    - action: action_check_parking_arrears

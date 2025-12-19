@@ -1,0 +1,15 @@
+# Student pays parking arrears at the InfoDesk
+version: "3.1"
+
+stories:
+- story: student pays arrears at infodesk
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Emma"
+        - last_name: "Jones"
+    - action: action_lookup_student
+    - intent: ask_parking_arrears
+    - action: action_check_parking_arrears
+    - intent: pay_at_infodesk
+    - action: utter_visit_infodesk
