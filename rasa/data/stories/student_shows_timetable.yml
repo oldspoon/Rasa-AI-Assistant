@@ -1,0 +1,14 @@
+version: "3.1"
+
+stories:
+- story: student shows the full timetable
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - intent: ask_timetable
+    - action: action_show_timetable
+    - intent: ask_appointments
+    - action: action_list_appointments

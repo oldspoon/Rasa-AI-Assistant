@@ -1,0 +1,12 @@
+version: "3.1"
+
+stories:
+- story: student lists their appointments
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Grace"
+        - last_name: "Miller"
+    - action: action_lookup_student
+    - intent: ask_appointments
+    - action: action_list_appointments
