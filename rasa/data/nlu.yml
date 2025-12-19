@@ -1,0 +1,537 @@
+version: "3.1"
+
+nlu:
+
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - hi there
+    - good morning
+    - good afternoon
+    - good evening
+    - hey there
+    - howdy
+    - greetings
+    - what's up
+    - hello there
+
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you around
+    - see you later
+    - talk to you later
+    - good night
+    - have a good day
+    - take care
+    - cheers
+    - I'm done
+    - that's all I needed
+    - thanks bye
+
+- intent: introduce_self
+  examples: |
+    - my name is [Alice](first_name) [Johnson](last_name)
+    - I am [Bob](first_name) [Smith](last_name)
+    - I'm [Carol](first_name) [Williams](last_name)
+    - my name is [David](first_name) [Brown](last_name)
+    - I am [Emma](first_name) [Jones](last_name)
+    - my name is [Frank](first_name) [Garcia](last_name)
+    - I'm [Grace](first_name) [Miller](last_name)
+    - my name is [Henry](first_name) [Davis](last_name)
+    - I am [Isabella](first_name) [Wilson](last_name)
+    - my name is [Jack](first_name) [Moore](last_name)
+    - I am [Katie](first_name) [Taylor](last_name)
+    - my name is [Liam](first_name) [Anderson](last_name)
+    - I am [Mia](first_name) [Thomas](last_name)
+    - my name is [Noah](first_name) [Jackson](last_name)
+    - I am [Olivia](first_name) [White](last_name)
+    - [Alice](first_name) [Johnson](last_name)
+    - [Bob](first_name) [Smith](last_name)
+    - [Carol](first_name) [Williams](last_name)
+    - [David](first_name) [Brown](last_name)
+    - [Emma](first_name) [Jones](last_name)
+    - [Frank](first_name) [Garcia](last_name)
+    - [Grace](first_name) [Miller](last_name)
+    - [Henry](first_name) [Davis](last_name)
+    - [Isabella](first_name) [Wilson](last_name)
+    - [Jack](first_name) [Moore](last_name)
+    - [Katie](first_name) [Taylor](last_name)
+    - [Liam](first_name) [Anderson](last_name)
+    - [Mia](first_name) [Thomas](last_name)
+    - [Noah](first_name) [Jackson](last_name)
+    - [Olivia](first_name) [White](last_name)
+    - my first name is [Alice](first_name) and last name is [Johnson](last_name)
+    - call me [Bob](first_name) [Smith](last_name)
+    - I go by [Carol](first_name) [Williams](last_name)
+    - the name's [David](first_name) [Brown](last_name)
+    - it's [Emma](first_name) [Jones](last_name)
+    - this is [Frank](first_name) [Garcia](last_name)
+    - I'm a student, my name is [Grace](first_name) [Miller](last_name)
+    - student [Henry](first_name) [Davis](last_name)
+    - checking in as [Isabella](first_name) [Wilson](last_name)
+    - attendance for [Jack](first_name) [Moore](last_name)
+    - register me, I'm [Katie](first_name) [Taylor](last_name)
+    - hello, I am [Liam](first_name) [Anderson](last_name)
+    - hi, my name is [Mia](first_name) [Thomas](last_name)
+    - hey it's [Noah](first_name) [Jackson](last_name)
+    - good morning, [Olivia](first_name) [White](last_name) here
+    - my name is [John](first_name) [Doe](last_name)
+    - I am [Jane](first_name) [Doe](last_name)
+    - my name is [Sam](first_name) [Wright](last_name)
+    - I'm [Alex](first_name) [Turner](last_name)
+    - hi, I am [Chris](first_name) [Martin](last_name)
+    - it's [Dana](first_name) [Scully](last_name)
+
+- intent: ask_lecture_days
+  examples: |
+    - what days do I have lectures
+    - when are my lecture sessions
+    - which days do I have a lecture
+    - tell me my lecture days
+    - what day is my lecture
+    - do I have any lectures this week
+    - when is my lecture session
+    - lecture days please
+    - what are my lecture days
+    - on what days am I attending a lecture
+    - which day do I have lectures
+    - show me my lecture schedule
+    - when do I have lectures
+    - what day is my lecture session
+
+- intent: ask_practical_days
+  examples: |
+    - what days do I have practicals
+    - when are my practical sessions
+    - which days do I have a practical
+    - tell me my practical days
+    - what day is my practical
+    - do I have any practicals this week
+    - when is my practical session
+    - practical days please
+    - what are my practical days
+    - on what days am I attending a practical
+    - which day do I have practicals
+    - show me my practical schedule
+    - when do I have practicals
+    - what day is my practical session
+
+- intent: ask_campus
+  examples: |
+    - which campus am I at
+    - what campus do I go to
+    - which campus building is my session at
+    - where is my session
+    - what building am I in
+    - which campus location is mine
+    - where do I need to go
+    - which campus is my class at
+    - what is my campus
+    - tell me my campus location
+    - which building should I go to
+
+- intent: ask_time
+  examples: |
+    - what time is my session
+    - when does my class start
+    - what time does my lecture start
+    - what time does my practical start
+    - when does my session begin
+    - what are the session times
+    - what time should I arrive
+    - what is the time for my session
+    - when is my session
+    - tell me the time of my session
+    - at what time is my class
+
+- intent: ask_subject
+  examples: |
+    - what subject do I have
+    - what is my module
+    - what activity is my session
+    - which subject am I studying
+    - what course am I in
+    - what is my class about
+    - what subject is it
+    - tell me my subject
+    - what module am I registered for
+    - which activity is my session for
+    - what is the topic of my session
+
+- intent: ask_room
+  examples: |
+    - what room am I in
+    - what is my room number
+    - which room is my session in
+    - where exactly is my session
+    - what room should I go to
+    - tell me my room
+    - which room number
+    - what is the room for my class
+    - in which room is the session
+    - room number please
+    - what classroom am I in
+
+- intent: ask_teacher
+  examples: |
+    - who is my teacher
+    - who teaches me
+    - which teacher do I have
+    - who is my lecturer
+    - tell me my teacher
+    - who is teaching my lecture
+    - who is teaching my practical
+    - which teacher runs my sessions
+    - who is the teacher for my subject
+    - what is my teacher's name
+    - who is my tutor
+    - which teacher hosts my practical
+    - do I have a teacher for my discipline
+
+- intent: ask_teacher_office
+  examples: |
+    - where is my teacher's office
+    - what is my teacher's room number
+    - which office does my teacher use
+    - where can I find my teacher
+    - what is the teacher's office
+    - where is the office of my teacher
+    - which room is my teacher's office in
+    - where does my teacher work
+    - what office room does my teacher have
+    - where is my teacher's office room
+
+- intent: ask_teacher_hours
+  examples: |
+    - when can I visit my teacher
+    - when are my teacher's office hours
+    - what are my teacher's free hours
+    - when is my teacher available
+    - when is my teacher free
+    - when can students visit the teacher
+    - what are the office hours
+    - when does my teacher hold office hours
+    - tell me my teacher's office hours
+    - when can I meet my teacher
+    - is my teacher free on [Monday](day)
+    - when can I come to my teacher's office
+    - what are my teacher's free hours each day
+    - when is the teacher in their office
+
+- intent: book_teacher_slot
+  examples: |
+    - book a time with my teacher
+    - I want to book an office hour
+    - book a slot with my teacher
+    - can I book a time to see my teacher
+    - I would like to book an appointment with my teacher
+    - reserve an office hour slot
+    - book [Tuesday](day) at [14:30](time)
+    - can I book [Monday](day) [10:00](time)
+    - I want to see my teacher on [Thursday](day) at [15:30](time)
+    - book me [Friday](day) at [11:00](time)
+    - reserve [Wednesday](day) [13:30](time) please
+    - [Tuesday](day) at [14:30](time)
+    - [Monday](day) [10:00](time) works for me
+    - my teacher on [Friday](day) at [11:30](time) please
+    - I will book [Wednesday](day) at [11:00](time)
+    - book an appointment for [Thursday](day) at [16:00](time)
+
+- intent: ask_teacher_contact
+  examples: |
+    - how can I contact my teacher
+    - how do I contact the teachers
+    - what is my teacher's email
+    - what is my teacher's phone number
+    - how can I reach my teacher
+    - can I email my teacher
+    - how do I get in touch with my teacher
+    - contact details for my teacher
+    - teacher's contact information
+    - can I call my teacher
+    - can I message my teacher on Teams
+    - how do I contact my lecturer
+    - what is the teacher's email address
+    - how can I speak to my teacher
+    - give me my teacher's email and phone
+
+- intent: ask_library_location
+  examples: |
+    - where is the library
+    - where can I find the library
+    - where is the library in Merchiston
+    - where is the library at Sighthill
+    - where is the library at Craiglockhart
+    - library location
+    - which room is the library in
+    - how do I get to the library
+    - what are the library opening hours
+    - when is the library open
+    - tell me where the libraries are
+    - where are the libraries on each campus
+    - I need to find the library
+    - show me the library locations
+
+- intent: ask_books
+  examples: |
+    - recommend books
+    - recommend me some books
+    - which books should I read
+    - what books do you recommend for my subject
+    - show me books for my subject
+    - suggest some books
+    - what books can I borrow
+    - give me a book list
+    - which library books are there for my subject
+    - I want to see the books
+    - book recommendations please
+    - what should I read for my course
+    - show me the reading list
+
+- intent: borrow_book
+  examples: |
+    - I want to borrow book [2](book)
+    - borrow book [1](book)
+    - I would like to borrow book [3](book)
+    - borrow book [4](book) [digitally](format)
+    - borrow book [5](book) [in person](format)
+    - I want to borrow book [2](book) [online](format)
+    - can I borrow book [3](book) [digitally](format)
+    - take out book [1](book)
+    - take out book [4](book) [in person](format)
+    - I will borrow number [2](book)
+    - borrow number [5](book) [digitally](format)
+    - reserve book [3](book) for collection
+    - I want to borrow it [digitally](format)
+    - I want to collect it [in person](format)
+    - borrow it [online](format)
+    - lend me book [1](book)
+    - I want to borrow a book
+    - can I borrow a book
+    - I would like to take out a book
+    - borrow a library book
+
+- intent: ask_borrowed_books
+  examples: |
+    - show my borrowed books
+    - what books have I borrowed
+    - which books do I have on loan
+    - do I have any library fines
+    - check my library fines
+    - do I owe anything to the library
+    - do I have any overdue books
+    - my borrowed books
+    - how much do I owe for late books
+    - are any of my books overdue
+    - check my book loans
+    - what are my library loans
+    - did I return my books
+    - do I have a fine for a book
+
+- intent: ask_support_lectures
+  examples: |
+    - what support lectures are available
+    - show me the extra support lectures
+    - I need extra help with my subject
+    - are there any additional lectures
+    - show the support sessions
+    - when are the lab assistant sessions
+    - I want extra support for my programme
+    - what extra classes can I book
+    - do you have any support lectures
+    - additional support lectures please
+    - show me sessions with a lab assistant
+    - I need some extra help
+    - extra lectures for my course
+    - support lectures
+
+- intent: book_support_lecture
+  examples: |
+    - book support lecture [2](session)
+    - I want to book support session [1](session)
+    - book me into support lecture [3](session)
+    - reserve a seat in support session [2](session)
+    - sign me up for support lecture [1](session)
+    - I would like to book support lecture [3](session)
+    - join support session [2](session)
+    - book support session [1](session)
+    - schedule me into support lecture [2](session)
+    - I want to book a support lecture
+    - book an extra support lecture
+    - I would like to book additional support
+    - can I book a support session
+    - schedule a support lecture
+
+- intent: ask_my_support_lectures
+  examples: |
+    - show my support lectures
+    - which support lectures have I booked
+    - my booked support sessions
+    - what support lectures do I have booked
+    - do I have any support lectures booked
+    - my support lectures
+    - when is my next support lecture
+    - check my support bookings
+    - which lab assistant sessions am I booked on
+    - show my extra lectures
+
+- intent: ask_appointments
+  examples: |
+    - show my appointments
+    - what appointments do I have
+    - list my appointments
+    - do I have any appointments booked
+    - which slots have I booked
+    - my booked slots
+    - what visits have I booked
+    - show my upcoming appointments
+    - what have I booked with my teacher and the lab assistants
+    - check my appointments
+    - my appointments
+    - which appointments are booked
+
+- intent: ask_timetable
+  examples: |
+    - show my timetable
+    - what is my timetable
+    - give me my full timetable
+    - show me my timetable with appointments
+    - my timetable
+    - list my whole week
+    - what is on my timetable this week
+    - full timetable please
+    - show my lectures practicals and appointments
+    - I want to see my timetable
+    - timetable please
+    - what does my week look like
+
+- intent: ask_all_details
+  examples: |
+    - show me all the details
+    - give me my complete information
+    - everything about my session
+    - full details
+    - all info
+    - what do you know about me
+    - show all
+    - complete information
+    - give me the whole picture
+    - I want all the details about my schedule
+    - tell me everything
+    - what is my full schedule
+    - give me all my details
+    - show me everything about my sessions
+    - what are all my session details
+    - tell me everything about my schedule
+    - complete schedule
+    - all details please
+    - give me a full overview of my sessions
+    - what sessions do I have and when
+
+- intent: ask_explain
+  examples: |
+    - what can you do
+    - what are you
+    - who are you
+    - what is this bot
+    - what is this chatbot
+    - what is this system
+    - what are you used for
+    - what is this chatbot for
+    - how can you help me
+    - how do I use this bot
+    - how can I interact with you
+    - what kind of questions can I ask
+    - what can I ask you
+    - explain what you do
+    - tell me about yourself
+    - how does this work
+    - help
+    - help me
+
+- intent: out_of_scope
+  examples: |
+    - what is the weather like
+    - tell me a joke
+    - what is the meaning of life
+    - can you help me with homework
+    - what is 2 plus 2
+    - who won the football match
+    - order me a pizza
+    - play some music
+    - what is the news today
+    - I need help with something else
+    - asdfghjkl
+    - qwerty zxcvb
+    - blah blah blah
+    - lorem ipsum dolor
+    - zzz zzz zzz
+
+- intent: thank_you
+  examples: |
+    - thanks
+    - thank you
+    - thanks a lot
+    - thank you so much
+    - many thanks
+    - thanks!
+    - perfect, thanks
+    - great, thank you
+    - awesome, thanks
+    - that's great, thank you
+    - okay, thank you
+    - thank you very much
+    - much appreciated
+
+- intent: ask_parking_arrears
+  examples: |
+    - do I have any parking arrears
+    - check my parking arrears
+    - do I owe any parking fines
+    - do I have a parking fine
+    - any parking tickets
+    - have I got any parking charges
+    - parking arrears
+    - what parking fines do I owe
+    - show my parking fines
+    - is there a parking charge on my account
+    - do I have unpaid parking charges
+    - how much do I owe for parking
+    - did I get a parking ticket
+    - check my parking fines
+    - I want to check my parking arrears
+    - any outstanding parking fines
+    - what do I owe for parking
+    - am I in parking arrears
+    - have I been fined for parking
+    - do I owe anything for parking on campus
+
+- intent: pay_by_phone
+  examples: |
+    - pay by phone
+    - I want to pay by phone
+    - pay over the phone
+    - can I pay by phone
+    - phone payment
+    - I will pay by phone
+    - how do I pay by phone
+    - pay my fine by phone
+    - I would like to pay by phone
+    - call to pay
+
+- intent: pay_at_infodesk
+  examples: |
+    - visit the InfoDesk
+    - I will visit the InfoDesk
+    - pay at the InfoDesk
+    - pay in person
+    - I want to pay at the info desk
+    - can I pay at the InfoDesk
+    - go to the info desk
+    - pay my fine in person
+    - I would like to pay at the InfoDesk
+    - where is the InfoDesk
