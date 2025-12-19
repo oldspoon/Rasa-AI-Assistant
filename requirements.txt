@@ -1,0 +1,4 @@
+# Umbrella requirements for the workspace venv.
+# Installs both Python projects (the action server and the Rasa bot).
+-r action_server/requirements.txt
+-r rasa/requirements.txt

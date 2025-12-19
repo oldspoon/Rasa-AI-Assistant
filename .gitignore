@@ -1,0 +1,41 @@
+# Local docs (manuals, transcripts) are never committed. The root README is the exception.
+*.md
+!README.md
+demo.txt
+
+# Archived git dirs of the pre-monorepo projects (local backup only).
+/.git-store/
+
+# Local tooling / scratch.
+/.agents/
+/.claude/
+/skills-lock.json
+
+# Local environment files (never commit DATABASE_URL or other secrets).
+.env
+.env.local
+
+# Neon CLI linkage (project/branch IDs).
+.neon
+.neon/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+.venv/
+
+# Node
+node_modules/
+dist/
+package-lock.json
+
+# Rasa runtime artifacts
+.rasa/
+models/*.tar.gz
+results/
+/rasa/logs/
+
+# Copied from web/src for the static Space.
+/deploy/static-space/shared/
