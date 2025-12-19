@@ -1,0 +1,16 @@
+version: "3.1"
+
+stories:
+- story: student asks about their teacher
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Alice"
+        - last_name: "Johnson"
+    - action: action_lookup_student
+    - intent: ask_teacher
+    - action: action_answer_teacher
+    - intent: ask_teacher_office
+    - action: action_answer_teacher_office
+    - intent: ask_teacher_hours
+    - action: action_answer_teacher_hours

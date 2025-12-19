@@ -1,0 +1,12 @@
+version: "3.1"
+
+stories:
+- story: student asks how to contact the teacher
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Alice"
+        - last_name: "Johnson"
+    - action: action_lookup_student
+    - intent: ask_teacher_contact
+    - action: action_answer_teacher_contact

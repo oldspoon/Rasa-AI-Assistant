@@ -1,0 +1,19 @@
+version: "3.1"
+
+stories:
+- story: student books a teacher slot in one message
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - intent: ask_teacher_hours
+    - action: action_answer_teacher_hours
+    - intent: book_teacher_slot
+      entities:
+        - day: "Tuesday"
+        - time: "10:00"
+    - action: action_book_teacher_slot
+    - intent: goodbye
+    - action: utter_goodbye
