@@ -1,0 +1,8 @@
+# Student asks for lecture days without introducing (the action guards the reply)
+version: "3.1"
+
+stories:
+- story: student asks without intro
+  steps:
+    - intent: ask_lecture_days
+    - action: action_answer_lecture_days
