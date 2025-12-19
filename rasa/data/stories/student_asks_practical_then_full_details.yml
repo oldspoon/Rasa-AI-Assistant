@@ -1,0 +1,19 @@
+# Student asks practical then full details
+version: "3.1"
+
+stories:
+- story: student asks practical then full details
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: introduce_self
+      entities:
+        - first_name: "Isabella"
+        - last_name: "Wilson"
+    - action: action_lookup_student
+    - intent: ask_practical_days
+    - action: action_answer_practical_days
+    - intent: ask_all_details
+    - action: action_answer_all_details
+    - intent: goodbye
+    - action: utter_goodbye

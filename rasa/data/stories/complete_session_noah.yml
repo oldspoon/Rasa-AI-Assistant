@@ -1,0 +1,21 @@
+# Complete session for Noah
+version: "3.1"
+
+stories:
+- story: complete session Noah
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: introduce_self
+      entities:
+        - first_name: "Noah"
+        - last_name: "Jackson"
+    - action: action_lookup_student
+    - intent: ask_practical_days
+    - action: action_answer_practical_days
+    - intent: ask_subject
+    - action: action_answer_subject
+    - intent: ask_campus
+    - action: action_answer_campus
+    - intent: goodbye
+    - action: utter_goodbye

@@ -1,0 +1,21 @@
+# Complete session for Olivia
+version: "3.1"
+
+stories:
+- story: complete session Olivia
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: introduce_self
+      entities:
+        - first_name: "Olivia"
+        - last_name: "White"
+    - action: action_lookup_student
+    - intent: ask_lecture_days
+    - action: action_answer_lecture_days
+    - intent: ask_time
+    - action: action_answer_time
+    - intent: ask_room
+    - action: action_answer_room
+    - intent: goodbye
+    - action: utter_goodbye
