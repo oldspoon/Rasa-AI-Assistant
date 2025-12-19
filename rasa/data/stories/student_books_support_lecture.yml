@@ -1,0 +1,18 @@
+version: "3.1"
+
+stories:
+- story: student books a support lecture
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - intent: ask_support_lectures
+    - action: action_list_support_lectures
+    - intent: book_support_lecture
+      entities:
+        - session: "3"
+    - action: action_book_support_lecture
+    - intent: ask_my_support_lectures
+    - action: action_check_support_bookings

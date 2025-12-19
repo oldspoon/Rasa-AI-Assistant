@@ -1,0 +1,16 @@
+version: "3.1"
+
+stories:
+- story: student picks a support lecture after being asked
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Mia"
+        - last_name: "Thomas"
+    - action: action_lookup_student
+    - intent: book_support_lecture
+    - action: action_book_support_lecture
+    - intent: book_support_lecture
+      entities:
+        - session: "1"
+    - action: action_book_support_lecture

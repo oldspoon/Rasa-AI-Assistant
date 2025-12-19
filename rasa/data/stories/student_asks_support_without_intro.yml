@@ -1,0 +1,7 @@
+version: "3.1"
+
+stories:
+- story: student asks about support lectures without introducing
+  steps:
+    - intent: ask_support_lectures
+    - action: action_list_support_lectures
