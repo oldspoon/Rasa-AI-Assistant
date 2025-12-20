@@ -1,0 +1,345 @@
+version: "3.1"
+
+# End-to-end stories. Run: rasa test core --e2e --stories tests/test_stories.yml
+# Entities are inline, e.g. [Alice](first_name). Custom actions are not run,
+# so only intents and actions are checked. slot_was_set mirrors the runtime name slots.
+
+stories:
+
+# Alice Johnson: lecture student, happy path
+- story: e2e - conversation 1 - Alice Johnson full lecture flow
+  steps:
+    - action: action_listen
+    - user: "Hello"
+      intent: greet
+    - action: utter_greet
+    - action: action_listen
+    - user: "My name is [Alice](first_name) [Johnson](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Alice"
+        - last_name: "Johnson"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "What days do I have lectures?"
+      intent: ask_lecture_days
+    - action: action_answer_lecture_days
+    - action: action_listen
+    - user: "Which campus am I at?"
+      intent: ask_campus
+    - action: action_answer_campus
+    - action: action_listen
+    - user: "What time is my session?"
+      intent: ask_time
+    - action: action_answer_time
+    - action: action_listen
+    - user: "What subject do I have?"
+      intent: ask_subject
+    - action: action_answer_subject
+    - action: action_listen
+    - user: "What room am I in?"
+      intent: ask_room
+    - action: action_answer_room
+    - action: action_listen
+    - user: "Give me all my details"
+      intent: ask_all_details
+    - action: action_answer_all_details
+    - action: action_listen
+    - user: "Goodbye"
+      intent: goodbye
+    - action: utter_goodbye
+
+# Bob Smith: practical student, happy path
+- story: e2e - conversation 2 - Bob Smith full practical flow
+  steps:
+    - action: action_listen
+    - user: "I am [Bob](first_name) [Smith](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "What days do I have practicals?"
+      intent: ask_practical_days
+    - action: action_answer_practical_days
+    - action: action_listen
+    - user: "Which campus am I at?"
+      intent: ask_campus
+    - action: action_answer_campus
+    - action: action_listen
+    - user: "What time is my session?"
+      intent: ask_time
+    - action: action_answer_time
+    - action: action_listen
+    - user: "What room am I in?"
+      intent: ask_room
+    - action: action_answer_room
+    - action: action_listen
+    - user: "Give me all my details"
+      intent: ask_all_details
+    - action: action_answer_all_details
+    - action: action_listen
+    - user: "Goodbye"
+      intent: goodbye
+    - action: utter_goodbye
+
+# Unknown student, then a real name
+- story: e2e - conversation 3 - unknown student recovery
+  steps:
+    - action: action_listen
+    - user: "Hello"
+      intent: greet
+    - action: utter_greet
+    - action: action_listen
+    - user: "My name is [John](first_name) [Doe](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "John"
+        - last_name: "Doe"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "I am [Mia](first_name) [Thomas](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Mia"
+        - last_name: "Thomas"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "What days do I have lectures?"
+      intent: ask_lecture_days
+    - action: action_answer_lecture_days
+    - action: action_listen
+    - user: "What room am I in?"
+      intent: ask_room
+    - action: action_answer_room
+    - action: action_listen
+    - user: "Goodbye"
+      intent: goodbye
+    - action: utter_goodbye
+
+# Guardrails
+- story: e2e - extra - asks schedule without introducing (guard)
+  steps:
+    - action: action_listen
+    - user: "What days do I have lectures?"
+      intent: ask_lecture_days
+    - action: action_answer_lecture_days
+
+- story: e2e - extra - out of scope question
+  steps:
+    - action: action_listen
+    - user: "Tell me a joke"
+      intent: out_of_scope
+    - action: utter_out_of_scope
+
+- story: e2e - extra - asks what the bot can do
+  steps:
+    - action: action_listen
+    - user: "What can you do?"
+      intent: ask_explain
+    - action: utter_explain
+
+- story: e2e - teacher - Alice asks who teaches her and when to visit
+  steps:
+    - action: action_listen
+    - user: "My name is [Alice](first_name) [Johnson](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Alice"
+        - last_name: "Johnson"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "Who is my teacher?"
+      intent: ask_teacher
+    - action: action_answer_teacher
+    - action: action_listen
+    - user: "Where is my teacher's office?"
+      intent: ask_teacher_office
+    - action: action_answer_teacher_office
+    - action: action_listen
+    - user: "When can I visit my teacher?"
+      intent: ask_teacher_hours
+    - action: action_answer_teacher_hours
+
+- story: e2e - teacher - Mia books a slot after the prompt
+  steps:
+    - action: action_listen
+    - user: "I am [Mia](first_name) [Thomas](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Mia"
+        - last_name: "Thomas"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "I want to book an office hour"
+      intent: book_teacher_slot
+    - action: action_book_teacher_slot
+    - action: action_listen
+    - user: "[Tuesday](day) at [14:30](time)"
+      intent: book_teacher_slot
+    - action: action_book_teacher_slot
+    - action: action_listen
+    - user: "Goodbye"
+      intent: goodbye
+    - action: utter_goodbye
+
+- story: e2e - library - Alice contacts her teacher and finds the library
+  steps:
+    - action: action_listen
+    - user: "My name is [Alice](first_name) [Johnson](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Alice"
+        - last_name: "Johnson"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "How can I contact my teacher?"
+      intent: ask_teacher_contact
+    - action: action_answer_teacher_contact
+    - action: action_listen
+    - user: "Where is the library?"
+      intent: ask_library_location
+    - action: action_answer_library_location
+
+- story: e2e - library - Bob borrows a book and checks his loans
+  steps:
+    - action: action_listen
+    - user: "I am [Bob](first_name) [Smith](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "Recommend books"
+      intent: ask_books
+    - action: action_suggest_books
+    - action: action_listen
+    - user: "I want to borrow book [3](book)"
+      intent: borrow_book
+    - action: action_borrow_book
+    - action: action_listen
+    - user: "Borrow book [3](book) [digitally](format)"
+      intent: borrow_book
+    - action: action_borrow_book
+    - action: action_listen
+    - user: "Show my borrowed books"
+      intent: ask_borrowed_books
+    - action: action_check_borrowed_books
+
+- story: e2e - library - Carol checks her library fines
+  steps:
+    - action: action_listen
+    - user: "I'm [Carol](first_name) [Williams](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Carol"
+        - last_name: "Williams"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "Do I have any library fines?"
+      intent: ask_borrowed_books
+    - action: action_check_borrowed_books
+
+- story: e2e - support - Bob books a support lecture and checks it
+  steps:
+    - action: action_listen
+    - user: "I am [Bob](first_name) [Smith](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "What support lectures are available?"
+      intent: ask_support_lectures
+    - action: action_list_support_lectures
+    - action: action_listen
+    - user: "Book support lecture [3](session)"
+      intent: book_support_lecture
+    - action: action_book_support_lecture
+    - action: action_listen
+    - user: "Show my support lectures"
+      intent: ask_my_support_lectures
+    - action: action_check_support_bookings
+
+- story: e2e - support - Mia is asked which session she wants
+  steps:
+    - action: action_listen
+    - user: "I'm [Mia](first_name) [Thomas](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Mia"
+        - last_name: "Thomas"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "I want to book a support lecture"
+      intent: book_support_lecture
+    - action: action_book_support_lecture
+    - action: action_listen
+    - user: "Book support session [1](session)"
+      intent: book_support_lecture
+    - action: action_book_support_lecture
+
+- story: e2e - appointments - Grace lists her appointments and timetable
+  steps:
+    - action: action_listen
+    - user: "I am [Grace](first_name) [Miller](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Grace"
+        - last_name: "Miller"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "Show my appointments"
+      intent: ask_appointments
+    - action: action_list_appointments
+    - action: action_listen
+    - user: "Show my timetable"
+      intent: ask_timetable
+    - action: action_show_timetable
+
+# Parking arrears
+- story: e2e - parking arrears - Alice Johnson pays by phone
+  steps:
+    - action: action_listen
+    - user: "My name is [Alice](first_name) [Johnson](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Alice"
+        - last_name: "Johnson"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "Do I have any parking arrears?"
+      intent: ask_parking_arrears
+    - action: action_check_parking_arrears
+    - action: action_listen
+    - user: "I want to pay by phone"
+      intent: pay_by_phone
+    - action: utter_pay_by_phone
+
+- story: e2e - parking arrears - Emma Jones pays at the InfoDesk
+  steps:
+    - action: action_listen
+    - user: "I'm [Emma](first_name) [Jones](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Emma"
+        - last_name: "Jones"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "Check my parking fines"
+      intent: ask_parking_arrears
+    - action: action_check_parking_arrears
+    - action: action_listen
+    - user: "I will visit the InfoDesk"
+      intent: pay_at_infodesk
+    - action: utter_visit_infodesk
+
+- story: e2e - parking arrears - asks without introducing (guard)
+  steps:
+    - action: action_listen
+    - user: "Any parking tickets?"
+      intent: ask_parking_arrears
+    - action: action_check_parking_arrears
