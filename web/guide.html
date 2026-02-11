@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        var theme = localStorage.getItem("attendance-bot-theme") || "system";
+        var dark =
+          theme === "dark" ||
+          (theme === "system" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%octopus.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/styles/tokens.css" />
+    <title>Octopi quick start guide</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 1.05rem;
+        line-height: 1.6;
+      }
+      header,
+      main,
+      footer {
+        width: min(860px, 100% - 32px);
+        margin-inline: auto;
+      }
+      header {
+        padding: 40px 0 8px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 2.1rem;
+        line-height: 1.2;
+      }
+      h2 {
+        margin: 0 0 6px;
+        font-size: 1.3rem;
+      }
+      p {
+        margin: 0 0 12px;
+      }
+      a {
+        color: var(--accent);
+      }
+      .lead {
+        color: var(--muted);
+        font-size: 1.12rem;
+      }
+      .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: var(--accent-contrast);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .back:hover {
+        background: var(--accent-hover);
+      }
+      nav.toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 20px 0 8px;
+      }
+      nav.toc a {
+        padding: 6px 12px;
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        color: var(--text);
+        font-size: 0.92rem;
+        text-decoration: none;
+      }
+      nav.toc a:hover {
+        background: var(--hover);
+        border-color: var(--accent);
+      }
+      section {
+        margin: 20px 0;
+        padding: 22px 24px;
+        border: 1px solid var(--hairline);
+        border-radius: 14px;
+        background: var(--panel);
+      }
+      section > p:first-of-type {
+        color: var(--muted);
+      }
+      ol,
+      ul {
+        margin: 0 0 12px;
+        padding-left: 1.3rem;
+      }
+      li {
+        margin: 4px 0;
+      }
+      .chat {
+        margin: 14px 0 4px;
+      }
+      .ask,
+      .bot {
+        margin: 0 0 10px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 1rem;
+      }
+      .ask {
+        margin-left: 10%;
+        border: 1px solid var(--hairline);
+        background: var(--surface-2);
+        font-weight: 600;
+      }
+      .bot {
+        margin-right: 6%;
+        border: 1px solid var(--hairline);
+        border-left: 4px solid var(--accent);
+        background: var(--panel);
+      }
+      .ask::before,
+      .bot::before {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .ask::before {
+        content: "Alice Johnson";
+      }
+      .bot::before {
+        content: "Octopi";
+      }
+      .buttons {
+        display: block;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed var(--hairline);
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .note {
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: var(--surface-2);
+      }
+      code {
+        padding: 1px 6px;
+        border-radius: 5px;
+        background: var(--surface-2);
+        font-size: 0.95em;
+      }
+      footer {
+        padding: 8px 0 48px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      a:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <p><a class="back" href="./">&larr; Back to Octopi</a></p>
+      <h1>Octopi quick start guide</h1>
+      <p class="lead">
+        Octopi is a chat assistant for your campus. You type a question, or say it out loud, and
+        it answers like a helpful person at a desk. You do not need any technical knowledge.
+      </p>
+      <p class="lead">
+        Every example below is the real conversation of one student, Alice Johnson. What she types
+        is in the first box, and what Octopi answers her is in the second.
+      </p>
+      <nav class="toc" aria-label="Sections">
+        <a href="#start">1. Get started</a>
+        <a href="#chat">2. How to chat</a>
+        <a href="#timetable">Your schedule</a>
+        <a href="#appointments">Appointments and timetable</a>
+        <a href="#teacher">Your teacher</a>
+        <a href="#visit">Visit your teacher</a>
+        <a href="#support">Support lectures</a>
+        <a href="#library">Library</a>
+        <a href="#borrow">Borrow a book</a>
+        <a href="#fines">Borrowed books and fines</a>
+        <a href="#parking">Parking</a>
+        <a href="#everyday">Everyday chat</a>
+        <a href="#help">If something goes wrong</a>
+      </nav>
+    </header>
+
+    <main>
+      <section id="start">
+        <h2>1. Get started: sign in</h2>
+        <p>You sign in once. After that Octopi knows who you are.</p>
+        <ol>
+          <li>Open the Octopi page in your usual web browser.</li>
+          <li>
+            In the box called <strong>Username</strong>, type your first name and last name
+            together, with no space and no capital letters. For Alice Johnson that is
+            <code>alicejohnson</code>.
+          </li>
+          <li>
+            In the box called <strong>Password</strong>, type your last name and then your first
+            name, again with no space. For Alice Johnson that is <code>johnsonalice</code>.
+          </li>
+          <li>Press the <strong>Sign in</strong> button.</li>
+        </ol>
+        <p>
+          If it says your details are wrong, look for a space or a typing slip and try again. As
+          soon as Alice Johnson signs in, Octopi greets her by name:
+        </p>
+        <div class="chat">
+          <p class="bot">
+            Great! I found your record, Alice Johnson. You can now ask me about your schedule. For
+            example: 'What days do I have lectures?', 'What days do I have practicals?', 'Give me
+            all my schedule details', or 'When can I visit my teacher?'
+          </p>
+        </div>
+      </section>
+
+      <section id="chat">
+        <h2>2. How to chat</h2>
+        <p>There are four ways to talk to Octopi. Use whichever feels easiest.</p>
+        <ul>
+          <li>
+            <strong>Type.</strong> Click the box at the bottom marked <strong>Message</strong>,
+            type your question, then press <strong>Enter</strong> or the <strong>Send</strong>
+            button. Write the way you would text a friend. You do not need exact words.
+          </li>
+          <li>
+            <strong>Tap a button.</strong> Octopi often shows buttons under its answer, such as
+            "Borrow book 2" or "Pay by phone". Tapping one is the same as typing it, and it is the
+            easiest way to carry on.
+          </li>
+          <li>
+            <strong>Speak.</strong> If you see a small microphone, tap it, say your question in
+            English, tap it again to stop, check the words, then press <strong>Send</strong>.
+          </li>
+          <li>
+            <strong>Suggestions.</strong> Octopi shows at most three suggested questions or
+            buttons at a time, and it never offers one you have already used. As you use them,
+            new ones appear.
+          </li>
+          <li>
+            <strong>Use the shortcuts.</strong> The list on the left, under
+            <strong>Ask about</strong>, sends a common question for you with one tap.
+          </li>
+        </ul>
+        <p>
+          <strong>Chat History.</strong> Under <strong>Conversation</strong> on the left, press
+          <strong>Chat History</strong> to see your earlier conversations on this device. Each one
+          is named after the first thing you asked or the first button you pressed. Choose one to
+          carry on where you left off. History is cleared when you sign off.
+        </p>
+        <p class="note">
+          Want to start again? Choose <strong>New conversation</strong>. Finished? Press
+          <strong>Sign off</strong> at the top, especially on a shared computer.
+        </p>
+      </section>
+
+      <section id="timetable">
+        <h2>Your schedule</h2>
+        <p>Find out when and where your lectures and practicals are.</p>
+        <div class="chat">
+          <p class="ask">What days do I have lectures?</p>
+          <p class="bot">
+            Hi Alice! You have a <strong>Lecture</strong> session on <strong>Monday</strong>,
+            hosted by <strong>Margaret Ellison</strong>. Would you like to know more details such
+            as your campus, time, subject, or room?
+          </p>
+
+          <p class="ask">What days do I have practicals?</p>
+          <p class="bot">
+            Hi Alice! You have a <strong>Practical</strong> session on <strong>Wednesday</strong>,
+            hosted by <strong>Margaret Ellison</strong>. Would you like to know more details such
+            as your campus, time, subject, or room?
+          </p>
+
+          <p class="ask">Which campus am I at?</p>
+          <p class="bot">
+            Alice, your lecture and practical both take place at the
+            <strong>Craiglockhart</strong> campus, hosted by <strong>Margaret Ellison</strong>.
+          </p>
+
+          <p class="ask">What time is my session?</p>
+          <p class="bot">
+            Alice, your <strong>Lecture</strong> on <strong>Monday</strong> runs from
+            <strong>10:00-12:00</strong> and your <strong>Practical</strong> on
+            <strong>Wednesday</strong> runs from <strong>13:00-15:00</strong>. Both are hosted by
+            <strong>Margaret Ellison</strong>.
+          </p>
+
+          <p class="ask">What subject do I have?</p>
+          <p class="bot">
+            Alice, your subject is <strong>Fine Arts</strong>, taught by
+            <strong>Margaret Ellison</strong>.
+          </p>
+
+          <p class="ask">What room am I in?</p>
+          <p class="bot">
+            Alice, your <strong>Lecture</strong> is in room <strong>F14</strong> and your
+            <strong>Practical</strong> is in room <strong>D28</strong>, both at the
+            <strong>Craiglockhart</strong> campus. Your teacher <strong>Margaret Ellison</strong>
+            has office hours in room <strong>C214</strong>.
+          </p>
+
+          <p class="ask">Give me all my schedule details</p>
+          <p class="bot">
+            Here is the weekly schedule for <strong>Alice Johnson</strong>:<br />
+            <strong>Campus:</strong> Craiglockhart<br />
+            <strong>Subject:</strong> Fine Arts<br />
+            <strong>Teacher:</strong> Margaret Ellison (office <strong>C214</strong>)<br />
+            <br />
+            <strong>Lecture</strong><br />
+            <strong>Day:</strong> Monday<br />
+            <strong>Time:</strong> 10:00-12:00<br />
+            <strong>Room:</strong> F14<br />
+            <strong>Teacher:</strong> Margaret Ellison<br />
+            <br />
+            <strong>Practical</strong><br />
+            <strong>Day:</strong> Wednesday<br />
+            <strong>Time:</strong> 13:00-15:00<br />
+            <strong>Room:</strong> D28<br />
+            <strong>Teacher:</strong> Margaret Ellison<br />
+            Is there anything else you'd like to know?
+          </p>
+        </div>
+      </section>
+
+      <section id="appointments">
+        <h2>Appointments and your full timetable</h2>
+        <p>See everything you have booked, and your whole week in one place.</p>
+        <div class="chat">
+          <p class="ask">Show my appointments</p>
+          <p class="bot">
+            Hi Alice! You have no appointments booked. You can book a visit with your teacher or a
+            seat in a support lecture.
+            <span class="buttons">Buttons: Book a teacher visit, Book a support lecture</span>
+          </p>
+
+          <p class="ask">Show my timetable</p>
+          <p class="bot">
+            Here is the full timetable for <strong>Alice Johnson</strong>:<br />
+            <br />
+            <strong>Subject:</strong> Fine Arts<br />
+            <strong>Teacher:</strong> Margaret Ellison (office <strong>C214</strong>)<br />
+            <br />
+            <strong>Lecture</strong><br />
+            <strong>Day:</strong> Monday<br />
+            <strong>Time:</strong> 10:00-12:00<br />
+            <strong>Room:</strong> F14, Craiglockhart campus<br />
+            <strong>Teacher:</strong> Margaret Ellison<br />
+            <br />
+            <strong>Practical</strong><br />
+            <strong>Day:</strong> Wednesday<br />
+            <strong>Time:</strong> 13:00-15:00<br />
+            <strong>Room:</strong> D28, Craiglockhart campus<br />
+            <strong>Teacher:</strong> Margaret Ellison<br />
+            <br />
+            <strong>Appointments</strong><br />
+            <br />
+            <strong>Teacher visits</strong><br />
+            No teacher visits booked.<br />
+            <br />
+            <strong>Lab assistant support lectures</strong><br />
+            No support lectures booked.
+            <span class="buttons">Buttons: Book a teacher visit, Book a support lecture</span>
+          </p>
+        </div>
+        <p class="note">
+          When a list is empty, a button under the answer offers to book one for you.
+        </p>
+      </section>
+
+      <section id="teacher">
+        <h2>Your teacher</h2>
+        <p>Every subject has one teacher. Find out who they are and how to reach them.</p>
+        <div class="chat">
+          <p class="ask">Who is my teacher?</p>
+          <p class="bot">
+            Alice, your teacher is <strong>Margaret Ellison</strong>, who hosts both your
+            <strong>Lecture</strong> and your <strong>Practical</strong> for
+            <strong>Fine Arts</strong> at the <strong>Craiglockhart</strong> campus. Their office
+            is room <strong>C214</strong>.
+          </p>
+
+          <p class="ask">Where is my teacher's office?</p>
+          <p class="bot">
+            Alice, <strong>Margaret Ellison</strong> holds office hours in room
+            <strong>C214</strong> at the <strong>Craiglockhart</strong> campus. Ask me when you
+            can visit and I'll show the free hours.
+          </p>
+
+          <p class="ask">How can I contact my teacher?</p>
+          <p class="bot">
+            Alice, here is how to reach <strong>Margaret Ellison</strong>:<br />
+            <br />
+            <strong>Email:</strong> margaret.ellison@napier.ac.uk<br />
+            <strong>Phone:</strong> 0131 496 0142<br />
+            <strong>Microsoft Teams:</strong> search for Margaret Ellison in Teams to send a chat
+            message or start a call<br />
+            <br />
+            You can also visit room <strong>C214</strong> at the
+            <strong>Craiglockhart</strong> campus. Ask me for the office hours to see when and to
+            book a visit.
+          </p>
+        </div>
+      </section>
+
+      <section id="visit">
+        <h2>Visit your teacher</h2>
+        <p>Teachers have free office hours every weekday. You can book a visit in the chat.</p>
+        <div class="chat">
+          <p class="ask">When can I visit my teacher?</p>
+          <p class="bot">
+            Alice, you can visit <strong>Margaret Ellison</strong> in room
+            <strong>C214</strong> at the <strong>Craiglockhart</strong> campus during these free
+            hours:<br />
+            <br />
+            <strong>Monday:</strong> 10:00-12:00<br />
+            <strong>Tuesday:</strong> 14:00-16:00<br />
+            <strong>Wednesday:</strong> 10:00-12:00<br />
+            <strong>Thursday:</strong> 14:00-16:00<br />
+            <strong>Friday:</strong> 10:00-12:00<br />
+            <br />
+            Appointments are 30 minutes. Tell me a day and time to book one (for example: 'Book
+            Tuesday at 14:30').
+          </p>
+
+          <p class="ask">Book Tuesday at 14:30</p>
+          <p class="bot">
+            Booked! <strong>Alice</strong>, you will meet <strong>Margaret Ellison</strong> on
+            <strong>Tuesday</strong> from <strong>14:30</strong> to <strong>15:00</strong> in room
+            <strong>C214</strong> at the <strong>Craiglockhart</strong> campus. Please arrive on
+            time. Ask me any time to see your teacher's free hours again.
+          </p>
+
+          <p class="ask">I want to book an office hour</p>
+          <p class="bot">
+            Sure, Alice. <strong>Margaret Ellison</strong> is free in room
+            <strong>C214</strong> at these times:<br />
+            <br />
+            <strong>Monday:</strong> 10:00-12:00<br />
+            <strong>Tuesday:</strong> 14:00-16:00<br />
+            <strong>Wednesday:</strong> 10:00-12:00<br />
+            <strong>Thursday:</strong> 14:00-16:00<br />
+            <strong>Friday:</strong> 10:00-12:00<br />
+            <br />
+            Which day and time would you like? Slots are 30 minutes and start on the hour or half
+            hour (for example: 'Tuesday at 14:30').
+          </p>
+        </div>
+        <p class="note">
+          If the time is already taken or outside the free hours, Octopi tells you and shows what
+          is still free.
+        </p>
+      </section>
+
+      <section id="support">
+        <h2>Extra support lectures</h2>
+        <p>
+          Every programme runs extra one-hour lectures each week, led by a lab assistant. You can
+          book a seat in the next one.
+        </p>
+        <div class="chat">
+          <p class="ask">What support lectures are available?</p>
+          <p class="bot">
+            Hi Alice! Here are the extra support lectures for <strong>Fine Arts</strong>. Each one
+            is a weekly one-hour class run by a lab assistant:<br />
+            <br />
+            <strong>1.</strong> Colour theory workshop<br />
+            <strong>Next:</strong> Monday 23 November 2026<br />
+            <strong>Time:</strong> 16:00-17:00<br />
+            <strong>Room:</strong> C130, Craiglockhart campus<br />
+            <strong>Lab assistant:</strong> Hannah Brooks<br />
+            <strong>Seats left:</strong> 8<br />
+            <br />
+            <strong>2.</strong> Drawing techniques lab<br />
+            <strong>Next:</strong> Wednesday 18 November 2026<br />
+            <strong>Time:</strong> 15:00-16:00<br />
+            <strong>Room:</strong> C131, Craiglockhart campus<br />
+            <strong>Lab assistant:</strong> Callum Reid<br />
+            <strong>Seats left:</strong> 8<br />
+            <br />
+            <strong>3.</strong> Art history revision<br />
+            <strong>Next:</strong> Friday 20 November 2026<br />
+            <strong>Time:</strong> 14:00-15:00<br />
+            <strong>Room:</strong> C130, Craiglockhart campus<br />
+            <strong>Lab assistant:</strong> Hannah Brooks<br />
+            <strong>Seats left:</strong> 8<br />
+            <br />
+            Choose a number to book a seat. You book the next session shown.
+            <span class="buttons">Buttons: Book session 1, Book session 2, Book session 3</span>
+          </p>
+
+          <p class="ask">Book support lecture 2</p>
+          <p class="bot">
+            Booked, Alice! You have a seat in <strong>Drawing techniques lab</strong> on
+            <strong>Wednesday 18 November 2026</strong> from <strong>15:00</strong> to
+            <strong>16:00</strong> in room <strong>C131</strong> at the
+            <strong>Craiglockhart</strong> campus. Your lab assistant is
+            <strong>Callum Reid</strong> (callum.reid@napier.ac.uk). Say 'my support lectures' to
+            see everything you have booked.
+          </p>
+
+          <p class="ask">Show my support lectures</p>
+          <p class="bot">
+            Hi Alice! You have a support lecture booked:<br />
+            <br />
+            <strong>Drawing techniques lab</strong><br />
+            <strong>When:</strong> Wednesday 18 November 2026<br />
+            <strong>Time:</strong> 15:00-16:00<br />
+            <strong>Room:</strong> C131, Craiglockhart campus<br />
+            <strong>Lab assistant:</strong> Callum Reid (callum.reid@napier.ac.uk)
+            <span class="buttons">Buttons: Book another</span>
+          </p>
+        </div>
+        <p class="note">
+          Octopi will not book a session that is full or that clashes with your own lectures or
+          practicals, and it tells you why.
+        </p>
+      </section>
+
+      <section id="library">
+        <h2>Find the library</h2>
+        <p>There is a library on every campus. You do not need to sign in to ask this one.</p>
+        <div class="chat">
+          <p class="ask">Where is the library?</p>
+          <p class="bot">
+            Here is where to find the library on each campus:<br />
+            <br />
+            <strong>Merchiston Library</strong> (Merchiston campus)<br />
+            <strong>Where:</strong> East Wing, first floor<br />
+            <strong>Room:</strong> E105<br />
+            <strong>Open:</strong> Mon-Fri 08:30-20:00<br />
+            <br />
+            <strong>Sighthill Library</strong> (Sighthill campus)<br />
+            <strong>Where:</strong> Learning Centre, ground floor<br />
+            <strong>Room:</strong> L012<br />
+            <strong>Open:</strong> Mon-Fri 08:30-19:00<br />
+            <br />
+            <strong>Craiglockhart Library</strong> (Craiglockhart campus)<br />
+            <strong>Where:</strong> Main Building, second floor<br />
+            <strong>Room:</strong> M221<br />
+            <strong>Open:</strong> Mon-Fri 09:00-18:30<br />
+            <br />
+            Say 'recommend books' to see five books for your subject.
+            <span class="buttons">Buttons: Recommend books</span>
+          </p>
+
+          <p class="ask">Recommend books</p>
+          <p class="bot">
+            Hi Alice! Here are 5 books for <strong>Fine Arts</strong>:<br />
+            <br />
+            <strong>1.</strong> The Story of Art by E. H. Gombrich<br />
+            <strong>2.</strong> Lives of the Artists by Giorgio Vasari<br />
+            <strong>3.</strong> Ways of Seeing by John Berger<br />
+            <strong>4.</strong> Interaction of Color by Josef Albers<br />
+            <strong>5.</strong> The Art of Color by Johannes Itten<br />
+            <br />
+            Choose a number to borrow a book. You can borrow it digitally here in the chat, or
+            collect it in person from your campus library.<br />
+            <span class="buttons">Buttons: Borrow book 1 to Borrow book 5</span>
+          </p>
+
+        </div>
+        <p class="note">
+          The Merchiston library is in the East Wing. Every book Octopi suggests comes with its own
+          Borrow button.
+        </p>
+      </section>
+
+      <section id="borrow">
+        <h2>Borrow a book</h2>
+        <p>Tap a Borrow button, or type the number of the book you want.</p>
+        <div class="chat">
+          <p class="ask">I want to borrow book 2</p>
+          <p class="bot">
+            Alice, you picked <strong>Lives of the Artists</strong> by Giorgio Vasari. How would
+            you like to borrow it? A digital copy is ready straight away. An in-person copy gets
+            you a collection code and a receipt.
+            <span class="buttons">Buttons: Borrow digitally, Collect in person</span>
+          </p>
+
+        </div>
+        <p>Octopi then asks how you would like to borrow it:</p>
+        <ul>
+          <li>
+            <strong>Borrow digitally.</strong> The book is yours straight away in your digital
+            library. It returns by itself after 28 days, so there is nothing to carry back and no
+            fine.
+          </li>
+          <li>
+            <strong>Collect in person.</strong> You get a <strong>collection code</strong> and a
+            <strong>receipt</strong> in the chat. The receipt says where to collect the book, the
+            date to collect it by, the date to bring it back and where to return it. Show the code
+            at the library desk to get your book. Take a screenshot or write the code down.
+          </li>
+        </ul>
+      </section>
+
+      <section id="fines">
+        <h2>Check borrowed books and fines</h2>
+        <p>See everything you have on loan and whether you owe anything.</p>
+        <div class="chat">
+          <p class="ask">Show my borrowed books</p>
+          <p class="ask">Do I have any library fines?</p>
+          <p class="bot">
+            Hi Alice! You have a borrowed book:<br />
+            <br />
+            <strong>Book:</strong> The Story of Art by E. H. Gombrich<br />
+            <strong>Format:</strong> In person<br />
+            <strong>Borrowed:</strong> 1 September 2026<br />
+            <strong>Return by:</strong> 29 September 2026<br />
+            <strong>Return to:</strong> Craiglockhart Library, room M221<br />
+            <strong>Collection code:</strong> CRA-1042<br />
+            <strong>Status:</strong> Overdue by 48 days<br />
+            <strong>Fine owed:</strong> £10.00<br />
+            <br />
+            <strong>Total fines:</strong> £10.00<br />
+            <br />
+            Late books are fined £5.00 for each month (or part of a month) overdue. Return the book
+            to its library desk and pay the fine there.
+            <span class="buttons">Buttons: Where is the library?</span>
+          </p>
+        </div>
+        <p class="note">
+          Both questions give the same answer. A book that is not returned on time costs
+          <strong>£5 for each month, or part of a month</strong>, that it is late. Return it to the
+          library desk named in the answer and pay the fine there.
+        </p>
+      </section>
+
+      <section id="parking">
+        <h2>Parking charges</h2>
+        <p>Check whether you owe for parking on campus.</p>
+        <div class="chat">
+          <p class="ask">Do I have any parking arrears?</p>
+          <p class="bot">
+            Hi Alice! You have a parking charge to pay:<br />
+            <br />
+            <strong>Date:</strong> 14 October 2026<br />
+            <strong>Time:</strong> 09:32<br />
+            <strong>Vehicle:</strong> LB21 XQT<br />
+            <strong>Location:</strong> Craiglockhart campus grounds<br />
+            <strong>Fine owed:</strong> £60.00<br />
+            <strong>Pay by:</strong> 14 November 2026<br />
+            <br />
+            You can pay up to a month after a charge was issued. After that, charges start to
+            accrue. How would you like to pay?
+            <span class="buttons">Buttons: Pay by phone, Visit the InfoDesk</span>
+          </p>
+
+          <p class="ask">I want to pay by phone</p>
+          <p class="bot">
+            To pay by phone, call the parking payment line on <strong>020 7946 0321</strong>. Have
+            your vehicle's licence plate and the date of the charge ready.
+          </p>
+
+          <p class="ask">I will pay at the InfoDesk</p>
+          <p class="bot">
+            To pay in person, visit the <strong>InfoDesk</strong> on your campus. Bring your
+            vehicle's licence plate and the date of the charge.
+          </p>
+        </div>
+      </section>
+
+      <section id="everyday">
+        <h2>Everyday chat</h2>
+        <p>Octopi is polite and understands the basics.</p>
+        <div class="chat">
+          <p class="ask">Hello</p>
+          <p class="bot">
+            Hello! I'm Octopi, your Campus Attendance Assistant. Welcome to the Campus Attendance
+            System. Ask me about your schedule - lecture or practical days, campus, time, subject,
+            room, your teacher or the library. I can also show your teacher's contact details and
+            office hours, book a visit, lend you books and book extra support lectures. If I don't
+            know you yet, tell me your first and last name (e.g. 'My name is Alice Johnson').
+          </p>
+
+          <p class="ask">Thank you</p>
+          <p class="bot">
+            You're welcome! Let me know if you need anything else about your schedule.
+          </p>
+
+          <p class="ask">Goodbye</p>
+          <p class="bot">Goodbye! Have a great session on campus!</p>
+
+          <p class="ask">Help</p>
+          <p class="bot">
+            I'm Octopi, the Campus Attendance Assistant. Here is what I can do, in plain words:<br />
+            <br />
+            1. <strong>Tell me who you are.</strong> Type your first and last name, for example 'My
+            name is Alice Johnson'.<br />
+            2. <strong>Your timetable.</strong> Ask about your lecture or practical days, time,
+            room, campus or subject, or say 'Give me all my schedule details'.<br />
+            3. <strong>Your teacher.</strong> Ask 'Who is my teacher?', 'How can I contact my
+            teacher?' or 'When can I visit my teacher?', then book a visit, for example 'Book
+            Tuesday at 14:30'.<br />
+            4. <strong>The library.</strong> Ask 'Where is the library?', then 'Recommend books'
+            and borrow one digitally or collect it
+            in person.<br />
+            5. <strong>Appointments and timetable.</strong> Ask 'Show my appointments' for your
+            booked teacher visits and support lectures, or 'Show my timetable' for your whole
+            week.<br />
+            6. <strong>Extra support.</strong> Ask 'What support lectures are available?' to see
+            sessions run by lab assistants, then book a seat.<br />
+            7. <strong>What you owe.</strong> Ask 'Do I have any parking arrears?' or 'Show my
+            borrowed books' to check fines.<br />
+            <br />
+            Just type your question like a text message, tap the buttons I show, or use the
+            microphone to speak.
+          </p>
+        </div>
+      </section>
+
+      <section id="help">
+        <h2>If something goes wrong</h2>
+        <ul>
+          <li>
+            <strong>Octopi says it did not understand.</strong> Phrase it another way, or type
+            "Help".
+          </li>
+          <li>
+            <strong>Octopi asks you to introduce yourself.</strong> Type "My name is" followed by
+            your first and last name.
+          </li>
+          <li>
+            <strong>A banner says the server is asleep.</strong> The free hosting takes a short
+            while to wake up. Octopi still answers in the meantime. Try again in a minute.
+          </li>
+          <li>
+            <strong>Hard to read the screen?</strong> Open <strong>Options</strong> at the top and
+            switch between the light and dark theme.
+          </li>
+          <li>
+            <strong>Something else.</strong> Octopi only talks about your timetable, your teacher,
+            the library and your fines. For anything else it will say so politely.
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <p><a class="back" href="./">&larr; Back to Octopi</a></p>
+    </footer>
+  </body>
+</html>
