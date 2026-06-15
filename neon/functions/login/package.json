@@ -1,0 +1,10 @@
+{
+  "name": "campus-bot-login",
+  "private": true,
+  "type": "module",
+  "description": "Neon Function: student login endpoint for the Campus Attendance Bot.",
+  "dependencies": {
+    "@neon/functions": "^0.8.0",
+    "pg": "^8.13.0"
+  }
+}
