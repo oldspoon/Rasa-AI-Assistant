@@ -1,0 +1,240 @@
+version: "3.1"
+
+nlu:
+
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - hi there
+    - good morning
+    - good afternoon
+    - good evening
+    - hey there
+    - howdy
+    - greetings
+    - what's up
+    - hello there
+
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you around
+    - see you later
+    - talk to you later
+    - good night
+    - have a good day
+    - take care
+    - cheers
+    - I'm done
+    - that's all I needed
+    - thanks bye
+
+- intent: introduce_self
+  examples: |
+    - my name is [Alice](first_name) [Johnson](last_name)
+    - I am [Bob](first_name) [Smith](last_name)
+    - I'm [Carol](first_name) [Williams](last_name)
+    - my name is [David](first_name) [Brown](last_name)
+    - I am [Emma](first_name) [Jones](last_name)
+    - my name is [Frank](first_name) [Garcia](last_name)
+    - I'm [Grace](first_name) [Miller](last_name)
+    - my name is [Henry](first_name) [Davis](last_name)
+    - I am [Isabella](first_name) [Wilson](last_name)
+    - my name is [Jack](first_name) [Moore](last_name)
+    - I am [Katie](first_name) [Taylor](last_name)
+    - my name is [Liam](first_name) [Anderson](last_name)
+    - I am [Mia](first_name) [Thomas](last_name)
+    - my name is [Noah](first_name) [Jackson](last_name)
+    - I am [Olivia](first_name) [White](last_name)
+    - [Alice](first_name) [Johnson](last_name)
+    - [Bob](first_name) [Smith](last_name)
+    - [Carol](first_name) [Williams](last_name)
+    - [David](first_name) [Brown](last_name)
+    - [Emma](first_name) [Jones](last_name)
+    - [Frank](first_name) [Garcia](last_name)
+    - [Grace](first_name) [Miller](last_name)
+    - [Henry](first_name) [Davis](last_name)
+    - [Isabella](first_name) [Wilson](last_name)
+    - [Jack](first_name) [Moore](last_name)
+    - [Katie](first_name) [Taylor](last_name)
+    - [Liam](first_name) [Anderson](last_name)
+    - [Mia](first_name) [Thomas](last_name)
+    - [Noah](first_name) [Jackson](last_name)
+    - [Olivia](first_name) [White](last_name)
+    - my first name is [Alice](first_name) and last name is [Johnson](last_name)
+    - call me [Bob](first_name) [Smith](last_name)
+    - I go by [Carol](first_name) [Williams](last_name)
+    - the name's [David](first_name) [Brown](last_name)
+    - it's [Emma](first_name) [Jones](last_name)
+    - this is [Frank](first_name) [Garcia](last_name)
+    - I'm a student, my name is [Grace](first_name) [Miller](last_name)
+    - student [Henry](first_name) [Davis](last_name)
+    - checking in as [Isabella](first_name) [Wilson](last_name)
+    - attendance for [Jack](first_name) [Moore](last_name)
+    - register me, I'm [Katie](first_name) [Taylor](last_name)
+    - hello, I am [Liam](first_name) [Anderson](last_name)
+    - hi, my name is [Mia](first_name) [Thomas](last_name)
+    - hey it's [Noah](first_name) [Jackson](last_name)
+    - good morning, [Olivia](first_name) [White](last_name) here
+    # Name-shaped examples that are NOT in the database: they cover the
+    # "not found → retry with the real name" flow and help DIET extract
+    # arbitrary names instead of only the 15 seeded students.
+    - my name is [John](first_name) [Doe](last_name)
+    - I am [Jane](first_name) [Doe](last_name)
+    - my name is [Sam](first_name) [Wright](last_name)
+    - I'm [Alex](first_name) [Turner](last_name)
+    - hi, I am [Chris](first_name) [Martin](last_name)
+    - it's [Dana](first_name) [Scully](last_name)
+
+- intent: ask_lecture_days
+  examples: |
+    - what days do I have lectures
+    - when are my lecture sessions
+    - which days do I have a lecture
+    - tell me my lecture days
+    - what day is my lecture
+    - do I have any lectures this week
+    - when is my lecture session
+    - lecture days please
+    - what are my lecture days
+    - on what days am I attending a lecture
+    - which day do I have lectures
+    - show me my lecture schedule
+    - when do I have lectures
+    - what day is my lecture session
+
+- intent: ask_practical_days
+  examples: |
+    - what days do I have practicals
+    - when are my practical sessions
+    - which days do I have a practical
+    - tell me my practical days
+    - what day is my practical
+    - do I have any practicals this week
+    - when is my practical session
+    - practical days please
+    - what are my practical days
+    - on what days am I attending a practical
+    - which day do I have practicals
+    - show me my practical schedule
+    - when do I have practicals
+    - what day is my practical session
+
+- intent: ask_campus
+  examples: |
+    - which campus am I at
+    - what campus do I go to
+    - which campus building is my session at
+    - where is my session
+    - what building am I in
+    - which campus location is mine
+    - where do I need to go
+    - which campus is my class at
+    - what is my campus
+    - tell me my campus location
+    - which building should I go to
+
+- intent: ask_time
+  examples: |
+    - what time is my session
+    - when does my class start
+    - what time does my lecture start
+    - what time does my practical start
+    - when does my session begin
+    - what are the session times
+    - what time should I arrive
+    - what is the time for my session
+    - when is my session
+    - tell me the time of my session
+    - at what time is my class
+
+- intent: ask_subject
+  examples: |
+    - what subject do I have
+    - what is my module
+    - what activity is my session
+    - which subject am I studying
+    - what course am I in
+    - what is my class about
+    - what subject is it
+    - tell me my subject
+    - what module am I registered for
+    - which activity is my session for
+    - what is the topic of my session
+
+- intent: ask_room
+  examples: |
+    - what room am I in
+    - what is my room number
+    - which room is my session in
+    - where exactly is my session
+    - what room should I go to
+    - tell me my room
+    - which room number
+    - what is the room for my class
+    - in which room is the session
+    - room number please
+    - what classroom am I in
+
+- intent: ask_all_details
+  examples: |
+    - show me all the details
+    - give me my complete information
+    - everything about my session
+    - full details
+    - all info
+    - what do you know about me
+    - show all
+    - complete information
+    - give me the whole picture
+    - I want all the details about my schedule
+    - tell me everything
+    - what is my full schedule
+    - give me all my details
+    - show me everything about my sessions
+    - what are all my session details
+    - full timetable please
+    - tell me everything about my schedule
+    - what is on my timetable
+    - complete schedule
+    - all details please
+    - give me a full overview of my sessions
+    - what sessions do I have and when
+
+- intent: out_of_scope
+  examples: |
+    - what is the weather like
+    - tell me a joke
+    - what is the meaning of life
+    - can you help me with homework
+    - what is 2 plus 2
+    - who won the football match
+    - order me a pizza
+    - play some music
+    - what is the news today
+    - I need help with something else
+    # Nonsense input should end up here instead of a random intent
+    - asdfghjkl
+    - qwerty zxcvb
+    - blah blah blah
+    - lorem ipsum dolor
+    - zzz zzz zzz
+
+- intent: thank_you
+  examples: |
+    - thanks
+    - thank you
+    - thanks a lot
+    - thank you so much
+    - many thanks
+    - thanks!
+    - perfect, thanks
+    - great, thank you
+    - awesome, thanks
+    - that's great, thank you
+    - okay, thank you
+    - thank you very much
+    - much appreciated
