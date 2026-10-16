@@ -1,14 +1,120 @@
+/* =============================================================================
+   Design tokens. Light is the default; [data-theme="dark"] swaps the surfaces,
+   and the [data-cb="..."] blocks below swap the accent colours for palettes
+   tuned to each colour-vision deficiency (Okabe-Ito inspired).
+   ============================================================================= */
+:root {
+  color-scheme: light;
+  --bg: #eef1f5;
+  --panel: #ffffff;
+  --panel-border: #dde3ea;
+  --text: #1c2530;
+  --muted: #667085;
+  --bubble-bot-bg: #ffffff;
+  --bubble-bot-border: #dde3ea;
+  --bubble-user-text: #ffffff;
+  --accent: #2e6ef7;
+  --accent-hover: #245ee0;
+  --accent-contrast: #ffffff;
+  --focus: #2e6ef7;
+  --input-bg: #ffffff;
+  --input-border: #cdd6e0;
+  --chip-bg: #ffffff;
+  --chip-border: #cdd6e0;
+  --shadow: 0 12px 32px rgba(15, 25, 40, 0.14);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f151b;
+  --panel: #1a232c;
+  --panel-border: #2a3644;
+  --text: #e8edf3;
+  --muted: #93a2b2;
+  --bubble-bot-bg: #1a232c;
+  --bubble-bot-border: #2a3644;
+  --bubble-user-text: #ffffff;
+  --accent: #2e6ef7;
+  --accent-hover: #4a82f8;
+  --accent-contrast: #ffffff;
+  --focus: #5b9dff;
+  --input-bg: #141c24;
+  --input-border: #2f3d4d;
+  --chip-bg: #1a232c;
+  --chip-border: #2f3d4d;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* --- colour-blind-safe palettes --- */
+:root[data-cb="protanopia"] {
+  --accent: #0072b2;
+  --accent-hover: #015f95;
+  --focus: #0072b2;
+}
+
+:root[data-theme="dark"][data-cb="protanopia"] {
+  --focus: #4da3d9;
+}
+
+:root[data-cb="deuteranopia"] {
+  --accent: #6a4c93;
+  --accent-hover: #593f7c;
+  --focus: #6a4c93;
+}
+
+:root[data-theme="dark"][data-cb="deuteranopia"] {
+  --focus: #a98fd0;
+}
+
+:root[data-cb="tritanopia"] {
+  --accent: #b34700;
+  --accent-hover: #993d00;
+  --focus: #b34700;
+}
+
+:root[data-theme="dark"][data-cb="tritanopia"] {
+  --focus: #e08a4d;
+}
+
+:root[data-cb="achromatopsia"] {
+  --accent: #333333;
+  --accent-hover: #1f1f1f;
+  --focus: #333333;
+}
+
+:root[data-theme="dark"][data-cb="achromatopsia"] {
+  --accent: #d9d9d9;
+  --accent-hover: #f0f0f0;
+  --accent-contrast: #101010;
+  --bubble-user-text: #101010;
+  --focus: #ffffff;
+}
+
+/* =============================================================================
+   Base
+   ============================================================================= */
 * {
   box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
   margin: 0;
   font-family: system-ui, "Segoe UI", sans-serif;
-  background: #eef1f5;
-  color: #1c2530;
+  background: var(--bg);
+  color: var(--text);
   display: flex;
   justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+button,
+input {
+  font: inherit;
 }
 
 .chat {
@@ -18,7 +124,14 @@ body {
   flex-direction: column;
 }
 
+/* =============================================================================
+   Header + hamburger menu
+   ============================================================================= */
 header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 18px 20px 12px;
 }
 
@@ -27,12 +140,172 @@ header h1 {
   font-size: 1.25rem;
 }
 
-header p {
+header .title p {
   margin: 4px 0 0;
-  color: #667085;
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
+.menu-wrap {
+  position: relative;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.icon-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+  width: min(280px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  animation: rise 0.15s ease-out;
+}
+
+.menu-label {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.segmented {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.segmented button {
+  flex: 1;
+  padding: 7px 0;
+  border: 1px solid var(--input-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.segmented button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.cvd {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.cvd-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.cvd-option::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--input-border);
+  border-radius: 50%;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.cvd-option:hover {
+  border-color: var(--accent);
+}
+
+.cvd-option[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+
+.cvd-option[aria-pressed="true"]::before {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 3px var(--panel);
+}
+
+.cvd-label {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.cvd-option[aria-pressed="true"] .cvd-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.cvd-hint {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.menu hr {
+  border: 0;
+  border-top: 1px solid var(--panel-border);
+  margin: 10px 0;
+}
+
+.menu-action {
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-action:hover {
+  background: var(--panel-border);
+}
+
+/* =============================================================================
+   Messages
+   ============================================================================= */
 .messages {
   flex: 1;
   overflow-y: auto;
@@ -49,27 +322,83 @@ header p {
   white-space: pre-wrap;
   line-height: 1.45;
   font-size: 0.95rem;
+  animation: rise 0.18s ease-out;
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .bubble.bot {
   align-self: flex-start;
-  background: #fff;
-  border: 1px solid #dde3ea;
+  background: var(--bubble-bot-bg);
+  border: 1px solid var(--bubble-bot-border);
   border-bottom-left-radius: 4px;
 }
 
 .bubble.user {
   align-self: flex-end;
-  background: #2e6ef7;
-  color: #fff;
+  background: var(--accent);
+  color: var(--bubble-user-text);
   border-bottom-right-radius: 4px;
 }
 
-.bubble.typing {
-  color: #8894a3;
-  font-style: italic;
+.bubble .time {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.68rem;
+  text-align: right;
+  opacity: 0.65;
 }
 
+.bubble.typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 13px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: blink 0.9s ease-in-out infinite alternate;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* --- quick replies --- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.chip {
+  padding: 7px 12px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--text);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* =============================================================================
+   Composer
+   ============================================================================= */
 form {
   display: flex;
   gap: 10px;
@@ -79,27 +408,78 @@ form {
 form input {
   flex: 1;
   padding: 11px 14px;
-  border: 1px solid #cdd6e0;
+  border: 1px solid var(--input-border);
   border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text);
   font-size: 0.95rem;
 }
 
-form input:focus {
-  outline: 2px solid #2e6ef7;
-  outline-offset: -1px;
+form input::placeholder {
+  color: var(--muted);
 }
 
 form button {
   padding: 11px 20px;
   border: 0;
   border-radius: 10px;
-  background: #2e6ef7;
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-size: 0.95rem;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+form button:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 
 form button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* =============================================================================
+   Focus + motion
+   ============================================================================= */
+.icon-btn:focus-visible,
+.segmented button:focus-visible,
+.cvd-option:focus-visible,
+.menu-action:focus-visible,
+.chip:focus-visible,
+form input:focus-visible,
+form button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes blink {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble,
+  .menu {
+    animation: none;
+  }
+  .dot {
+    animation: none;
+    opacity: 0.7;
+  }
 }
