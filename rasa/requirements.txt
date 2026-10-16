@@ -1,0 +1,18 @@
+# Rasa project dependencies - Python 3.10 required (Rasa 3.6.x supports 3.8-3.10).
+#
+# Fresh setup (also done for you by: ./dev-run.sh --setup):
+#   py -3.10 -m venv .venv
+#   .venv\Scripts\python -m pip install -r requirements.txt    (Windows)
+#   .venv/bin/python   -m pip install -r requirements.txt      (macOS/Linux)
+
+rasa==3.6.20
+
+# Rasa 3.6.x still imports `pkg_resources` at runtime. That module was
+# removed from setuptools 81+, so anything >=81 breaks every `rasa`
+# command with "ModuleNotFoundError: No module named 'pkg_resources'".
+setuptools<81
+
+# Dialogue tests (tests/test_dialogues.py). Pinned to 7.x on purpose:
+# newer pytest releases force a newer `packaging`, but Rasa 3.6.20
+# requires packaging<21.
+pytest==7.4.4

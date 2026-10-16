@@ -1,0 +1,27 @@
+# Full multi-turn conversation
+version: "3.1"
+
+stories:
+- story: full multi-turn conversation
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: introduce_self
+      entities:
+        - first_name: "Henry"
+        - last_name: "Davis"
+    - action: action_lookup_student
+    - intent: ask_lecture_days
+    - action: action_answer_lecture_days
+    - intent: ask_campus
+    - action: action_answer_campus
+    - intent: ask_time
+    - action: action_answer_time
+    - intent: ask_subject
+    - action: action_answer_subject
+    - intent: ask_room
+    - action: action_answer_room
+    - intent: ask_all_details
+    - action: action_answer_all_details
+    - intent: goodbye
+    - action: utter_goodbye

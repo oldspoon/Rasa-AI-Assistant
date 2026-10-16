@@ -1,0 +1,152 @@
+version: "3.1"
+
+# End-to-end test stories:  rasa test core --e2e --stories tests\test_stories.yml
+#
+# How these run:
+# - Each `user` line is sent through the real NLU model; the predicted intent
+#   and entities are checked against the values here. Entities are written
+#   inline in the user text, e.g. "[Alice](first_name)" — that is the format
+#   the end-to-end story reader uses to attach gold entities to a user turn.
+# - Custom actions are NOT executed by the runner: it only checks that the
+#   dialogue policies predict the correct action at every step.
+# - `slot_was_set` mirrors the name slots that Rasa fills automatically at
+#   runtime from the extracted entities, and the `action_listen` steps mirror
+#   the implicit listens that are part of every training story. Together they
+#   keep the evaluated conversation state identical to the trained one.
+
+stories:
+
+# ---------------------------------------------------------------------------
+# Example conversation 1 — Alice Johnson (Lecture student, full happy path)
+# ---------------------------------------------------------------------------
+- story: e2e - conversation 1 - Alice Johnson full lecture flow
+  steps:
+    - action: action_listen
+    - user: "Hello"
+      intent: greet
+    - action: utter_greet
+    - action: action_listen
+    - user: "My name is [Alice](first_name) [Johnson](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Alice"
+        - last_name: "Johnson"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "What days do I have lectures?"
+      intent: ask_lecture_days
+    - action: action_answer_lecture_days
+    - action: action_listen
+    - user: "Which campus am I at?"
+      intent: ask_campus
+    - action: action_answer_campus
+    - action: action_listen
+    - user: "What time is my session?"
+      intent: ask_time
+    - action: action_answer_time
+    - action: action_listen
+    - user: "What subject do I have?"
+      intent: ask_subject
+    - action: action_answer_subject
+    - action: action_listen
+    - user: "What room am I in?"
+      intent: ask_room
+    - action: action_answer_room
+    - action: action_listen
+    - user: "Give me all my details"
+      intent: ask_all_details
+    - action: action_answer_all_details
+    - action: action_listen
+    - user: "Goodbye"
+      intent: goodbye
+    - action: utter_goodbye
+
+# ---------------------------------------------------------------------------
+# Example conversation 2 — Bob Smith (Practical student, full happy path)
+# ---------------------------------------------------------------------------
+- story: e2e - conversation 2 - Bob Smith full practical flow
+  steps:
+    - action: action_listen
+    - user: "I am [Bob](first_name) [Smith](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "What days do I have practicals?"
+      intent: ask_practical_days
+    - action: action_answer_practical_days
+    - action: action_listen
+    - user: "Which campus am I at?"
+      intent: ask_campus
+    - action: action_answer_campus
+    - action: action_listen
+    - user: "What time is my session?"
+      intent: ask_time
+    - action: action_answer_time
+    - action: action_listen
+    - user: "What room am I in?"
+      intent: ask_room
+    - action: action_answer_room
+    - action: action_listen
+    - user: "Give me all my details"
+      intent: ask_all_details
+    - action: action_answer_all_details
+    - action: action_listen
+    - user: "Goodbye"
+      intent: goodbye
+    - action: utter_goodbye
+
+# ---------------------------------------------------------------------------
+# Example conversation 3 — unknown student, then recovery with a real name
+# ---------------------------------------------------------------------------
+- story: e2e - conversation 3 - unknown student recovery
+  steps:
+    - action: action_listen
+    - user: "Hello"
+      intent: greet
+    - action: utter_greet
+    - action: action_listen
+    - user: "My name is [John](first_name) [Doe](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "John"
+        - last_name: "Doe"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "I am [Mia](first_name) [Thomas](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Mia"
+        - last_name: "Thomas"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "What days do I have lectures?"
+      intent: ask_lecture_days
+    - action: action_answer_lecture_days
+    - action: action_listen
+    - user: "What room am I in?"
+      intent: ask_room
+    - action: action_answer_room
+    - action: action_listen
+    - user: "Goodbye"
+      intent: goodbye
+    - action: utter_goodbye
+
+# ---------------------------------------------------------------------------
+# Extra coverage — guard rails
+# ---------------------------------------------------------------------------
+- story: e2e - extra - asks schedule without introducing (guard)
+  steps:
+    - action: action_listen
+    - user: "What days do I have lectures?"
+      intent: ask_lecture_days
+    - action: action_answer_lecture_days
+
+- story: e2e - extra - out of scope question
+  steps:
+    - action: action_listen
+    - user: "Tell me a joke"
+      intent: out_of_scope
+    - action: utter_out_of_scope
