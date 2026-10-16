@@ -84,6 +84,41 @@ def _student_or_error(
     return row
 
 
+def _log_turn(tracker: Tracker, action_name: str) -> None:
+    """
+    Log one line per action call, keyed by the conversation UUID (the sender
+    id the chat front end generates per conversation). Grep the action
+    server output for `conversation=<uuid>` to follow a chat; the full
+    conversation - including the bot's replies - is kept by the tracker
+    store (see rasa/tracker_store.py). Replay it with:
+
+        python show_conversation.py <uuid>
+
+    Log line shape:
+
+        conversation=9f2c... action=action_answer_campus intent=ask_campus
+        confidence=0.98 user='where is my class'
+        slots={'first_name': 'Alice', 'last_name': 'Johnson'}
+    """
+    latest = tracker.latest_message or {}
+    intent = latest.get("intent") or {}
+    confidence = intent.get("confidence")
+    slots = {
+        key: value
+        for key, value in (tracker.slots or {}).items()
+        if value is not None
+    }
+    logger.info(
+        "conversation=%s action=%s intent=%s confidence=%s user=%r slots=%s",
+        tracker.sender_id,
+        action_name,
+        intent.get("name") or "-",
+        f"{confidence:.2f}" if isinstance(confidence, (int, float)) else "-",
+        latest.get("text"),
+        slots or "-",
+    )
+
+
 class ActionLookupStudent(Action):
     """
     Triggered when the user introduces themselves.
@@ -99,6 +134,8 @@ class ActionLookupStudent(Action):
         tracker: Tracker,
         domain: Dict[Text, Any],
     ) -> List[Dict[Text, Any]]:
+
+        _log_turn(tracker, self.name())
 
         first_name, last_name = _get_full_name(tracker)
 
@@ -143,6 +180,8 @@ class ActionAnswerLectureDays(Action):
         domain: Dict[Text, Any],
     ) -> List[Dict[Text, Any]]:
 
+        _log_turn(tracker, self.name())
+
         row = _student_or_error(dispatcher, tracker)
         if row is None:
             return []
@@ -181,6 +220,8 @@ class ActionAnswerPracticalDays(Action):
         tracker: Tracker,
         domain: Dict[Text, Any],
     ) -> List[Dict[Text, Any]]:
+
+        _log_turn(tracker, self.name())
 
         row = _student_or_error(dispatcher, tracker)
         if row is None:
@@ -221,6 +262,8 @@ class ActionAnswerCampus(Action):
         domain: Dict[Text, Any],
     ) -> List[Dict[Text, Any]]:
 
+        _log_turn(tracker, self.name())
+
         row = _student_or_error(dispatcher, tracker)
         if row is None:
             return []
@@ -245,6 +288,8 @@ class ActionAnswerTime(Action):
         tracker: Tracker,
         domain: Dict[Text, Any],
     ) -> List[Dict[Text, Any]]:
+
+        _log_turn(tracker, self.name())
 
         row = _student_or_error(dispatcher, tracker)
         if row is None:
@@ -271,6 +316,8 @@ class ActionAnswerSubject(Action):
         domain: Dict[Text, Any],
     ) -> List[Dict[Text, Any]]:
 
+        _log_turn(tracker, self.name())
+
         row = _student_or_error(dispatcher, tracker)
         if row is None:
             return []
@@ -296,6 +343,8 @@ class ActionAnswerRoom(Action):
         domain: Dict[Text, Any],
     ) -> List[Dict[Text, Any]]:
 
+        _log_turn(tracker, self.name())
+
         row = _student_or_error(dispatcher, tracker)
         if row is None:
             return []
@@ -320,6 +369,8 @@ class ActionAnswerAllDetails(Action):
         tracker: Tracker,
         domain: Dict[Text, Any],
     ) -> List[Dict[Text, Any]]:
+
+        _log_turn(tracker, self.name())
 
         row = _student_or_error(dispatcher, tracker)
         if row is None:
