@@ -1,0 +1,23 @@
+version: "3.1"
+
+rules:
+
+- rule: Say goodbye anytime the user says goodbye
+  steps:
+    - intent: goodbye
+    - action: utter_goodbye
+
+- rule: Respond politely to a thank you
+  steps:
+    - intent: thank_you
+    - action: utter_youre_welcome
+
+- rule: Respond to questions outside the bot's scope
+  steps:
+    - intent: out_of_scope
+    - action: utter_out_of_scope
+
+- rule: Ask the user to rephrase when NLU confidence is low
+  steps:
+    - intent: nlu_fallback
+    - action: utter_default

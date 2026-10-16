@@ -1,0 +1,13 @@
+# Student asks time
+version: "3.1"
+
+stories:
+- story: student asks time after intro
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Emma"
+        - last_name: "Jones"
+    - action: action_lookup_student
+    - intent: ask_time
+    - action: action_answer_time
