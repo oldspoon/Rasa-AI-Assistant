@@ -4,6 +4,9 @@ import { reply as demoReply } from "./demoEngine.js";
 const K_SENDER = "attendance-bot-sender";
 const K_THEME = "attendance-bot-theme";
 const K_CVD = "attendance-bot-cvd";
+const K_LOG_PREFIX = "attendance-bot-log-";
+const LOG_MAX_ENTRIES = 300; // per conversation
+const LOG_MAX_CONVERSATIONS = 20; // transcripts kept in localStorage
 
 const THEMES = [
   { id: "system", label: "System", icon: "fa-desktop" },
@@ -56,6 +59,40 @@ function getSender() {
     localStorage.setItem(K_SENDER, id);
   }
   return id;
+}
+
+// Every turn is tracked under the conversation's UUID: one console line for
+// live debugging, plus a capped transcript in localStorage
+// ("attendance-bot-log-<uuid>") so the conversation can still be inspected
+// after a reload - including when it was answered by the in-browser demo
+// engine and never reached the backend.
+function lastTs(key) {
+  try {
+    const log = JSON.parse(localStorage.getItem(key) ?? "[]");
+    return log.length ? log[log.length - 1].ts : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function trackTurn(sender, from, text, extra) {
+  (from === "notice" ? console.warn : console.info)(
+    `[attendance-bot ${sender}] ${from}: ${text}`
+  );
+  try {
+    const key = K_LOG_PREFIX + sender;
+    const log = JSON.parse(localStorage.getItem(key) ?? "[]");
+    log.push({ ts: Date.now(), from, text, ...extra });
+    localStorage.setItem(key, JSON.stringify(log.slice(-LOG_MAX_ENTRIES)));
+    // Keep only the newest transcripts so localStorage cannot grow forever.
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(K_LOG_PREFIX) && k !== key)
+      .sort((a, b) => lastTs(b) - lastTs(a))
+      .slice(LOG_MAX_CONVERSATIONS - 1)
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* tracking must never break the chat (storage full / blocked) */
+  }
 }
 
 // Relative URL by default - the Vite dev server proxies /api/* to Rasa on
@@ -114,6 +151,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [copied, setCopied] = useState(false);
   const bottomRef = useRef(null);
   const menuRef = useRef(null);
   const demoStateRef = useRef({ student: null });
@@ -155,6 +193,7 @@ export default function App() {
 
     setMessages((msgs) => [...msgs, { from: "user", text: message, ts: Date.now() }]);
     setBusy(true);
+    trackTurn(sender, "user", message);
     try {
       const res = await fetch(WEBHOOK, {
         method: "POST",
@@ -168,11 +207,20 @@ export default function App() {
         ...msgs,
         ...replies.map((reply) => ({ from: "bot", text: reply.text, ts })),
       ]);
+      replies
+        .filter((reply) => reply.text)
+        .forEach((reply) => trackTurn(sender, "bot", reply.text, { engine: "rasa" }));
       setDemoMode(false);
-    } catch {
+    } catch (err) {
       // Backend unreachable (e.g. the hosted Space is parked). Answer from
       // the in-browser demo engine so the page always works: same intents,
       // same response wording, same seeded students.
+      trackTurn(
+        sender,
+        "notice",
+        `backend unreachable (${err?.message || err}) - answered by the demo engine`,
+        { engine: "demo" }
+      );
       await new Promise((resolve) => setTimeout(resolve, 500));
       const result = demoReply(message, demoStateRef.current.student);
       demoStateRef.current.student = result.student;
@@ -181,6 +229,9 @@ export default function App() {
         ...msgs,
         ...result.texts.map((text) => ({ from: "bot", text, ts })),
       ]);
+      result.texts.forEach((text) =>
+        trackTurn(sender, "bot", text, { engine: "demo" })
+      );
       setDemoMode(true);
     } finally {
       setBusy(false);
@@ -202,6 +253,17 @@ export default function App() {
     setInput("");
     demoStateRef.current.student = null;
     setDemoMode(false);
+    console.info(`[attendance-bot] new conversation ${id}`);
+  }
+
+  async function copySender() {
+    try {
+      await navigator.clipboard.writeText(sender);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      /* clipboard unavailable (non-secure context) - the id stays visible */
+    }
   }
 
   return (
@@ -275,6 +337,31 @@ export default function App() {
                 <i className="fa-solid fa-rotate-right" aria-hidden="true" />
                 Start a new conversation
               </button>
+
+              <hr />
+
+              <p className="menu-label">
+                <i className="fa-solid fa-fingerprint" aria-hidden="true" />
+                Conversation ID
+              </p>
+              <div className="conv-id">
+                <code title={sender}>{sender}</code>
+                <button
+                  type="button"
+                  className={`conv-copy${copied ? " copied" : ""}`}
+                  aria-label="Copy conversation ID"
+                  onClick={copySender}
+                >
+                  <i
+                    className={`fa-solid ${copied ? "fa-check" : "fa-copy"}`}
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+              <p className="conv-hint">
+                Identifies this conversation in the logs — quote it when
+                debugging.
+              </p>
             </div>
           )}
         </div>
