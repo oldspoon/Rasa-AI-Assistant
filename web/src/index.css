@@ -531,6 +531,31 @@ input {
   font-size: 0.72rem;
 }
 
+/* --- demo-mode notice (backend unreachable, in-browser fallback) --- */
+.demo-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  animation: rise 0.18s ease-out;
+}
+
+.demo-banner i {
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.demo-banner strong {
+  color: var(--text);
+}
+
 .section-title {
   margin: 0 0 10px;
   font-family: var(--font-serif);
