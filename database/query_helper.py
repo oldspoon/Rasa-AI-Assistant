@@ -1,22 +1,27 @@
 """
 database/query_helper.py
 Utility script for manually inspecting the attendance database.
+Uses the same auto-selected backend as the action server: the SQLite file by
+default, or the Postgres database when DATABASE_URL is set.
 Run:  python database/query_helper.py
 """
 
-import sqlite3
-import os
+import sys
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "attendance.db")
+# Keep the emoji/table output working on legacy Windows code pages.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+try:
+    from database import db          # imported as part of the package
+except ImportError:                  # run directly: python database/query_helper.py
+    import db
 
 
 def print_all_students():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM attendance ORDER BY id")
-    rows = cursor.fetchall()
-    conn.close()
+    rows = db.fetch_all("SELECT * FROM attendance ORDER BY id")
 
     header = (
         f"{'ID':<4} {'First':<12} {'Middle':<12} {'Last':<12} "
@@ -35,45 +40,32 @@ def print_all_students():
 
 
 def lookup_student(first_name: str, last_name: str):
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute(
+    row = db.fetch_one(
         "SELECT * FROM attendance WHERE LOWER(first_name)=LOWER(?) AND LOWER(last_name)=LOWER(?)",
         (first_name, last_name),
     )
-    row = cursor.fetchone()
-    conn.close()
     if row:
-        print(f"\n✅  Found: {dict(row)}\n")
+        print(f"\n✅  Found: {row}\n")
     else:
         print(f"\n❌  No student found for '{first_name} {last_name}'\n")
 
 
 def summary_by_campus():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute(
+    rows = db.fetch_all(
         "SELECT campus, COUNT(*) AS total FROM attendance GROUP BY campus ORDER BY campus"
     )
-    rows = cursor.fetchall()
-    conn.close()
     print("\nStudents per campus:")
     for r in rows:
-        print(f"  {r[0]:<18} → {r[1]} students")
+        print(f"  {r['campus']:<18} → {r['total']} students")
 
 
 def summary_by_session_type():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute(
+    rows = db.fetch_all(
         "SELECT session_type, COUNT(*) AS total FROM attendance GROUP BY session_type"
     )
-    rows = cursor.fetchall()
-    conn.close()
     print("\nStudents per session type:")
     for r in rows:
-        print(f"  {r[0]:<12} → {r[1]} students")
+        print(f"  {r['session_type']:<12} → {r['total']} students")
 
 
 if __name__ == "__main__":

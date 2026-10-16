@@ -7,6 +7,10 @@
 
 rasa-sdk==3.6.2
 
+# Postgres driver - only imported when DATABASE_URL is set (hosted
+# deployments, e.g. Neon). Local SQLite mode needs no extra package.
+psycopg2-binary==2.9.10
+
 # Rasa SDK 3.x imports `pkg_resources` at runtime; setuptools 81+ removed it.
 # Same pin as the Rasa project uses.
 setuptools<81
