@@ -34,3 +34,4 @@ package-lock.json
 .rasa/
 models/*.tar.gz
 results/
+/rasa/logs/
