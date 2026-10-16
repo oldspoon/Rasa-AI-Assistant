@@ -11,3 +11,8 @@ rasa==3.6.20
 # removed from setuptools 81+, so anything >=81 breaks every `rasa`
 # command with "ModuleNotFoundError: No module named 'pkg_resources'".
 setuptools<81
+
+# Dialogue tests (tests/test_dialogues.py). Pinned to 7.x on purpose:
+# newer pytest releases force a newer `packaging`, but Rasa 3.6.20
+# requires packaging<21.
+pytest==7.4.4
