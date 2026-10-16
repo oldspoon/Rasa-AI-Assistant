@@ -2,11 +2,10 @@
    Design tokens.
 
    Layout & palette follow the Apple developer-documentation look (dark nav
-   bar, hairline separators, pill badges); the type system follows the same
-   serif/sans split. The reference docs' own fonts (the licensed pair,
-   formerly Styrene + Tiempos) are proprietary - they are used when installed
-   locally, with Inter / Source Serif 4 (bundled via Fontsource) as the free
-   stand-ins otherwise.
+   bar, hairline separators, pill badges); the type system keeps the
+   serif/sans split with two fully free fonts bundled via Fontsource:
+   Inter (SIL OFL) for interface chrome, Source Serif 4 (SIL OFL) for
+   headings and reading text. Nothing proprietary is referenced or shipped.
 
    [data-theme="dark"] swaps the surfaces; the [data-cb="..."] blocks swap the
    accent colours for palettes tuned to each colour-vision deficiency
@@ -43,10 +42,10 @@
 
   --shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
 
-  --font-sans: "Styrene A Web", "Styrene A", "Styrene B",
-    "Inter Variable", Inter, system-ui, "Segoe UI", sans-serif;
-  --font-serif: "Tiempos Text", "Tiempos Headline",
-    "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter Variable", Inter, system-ui, "Segoe UI", Roboto,
+    sans-serif;
+  --font-serif: "Source Serif 4 Variable", "Source Serif 4", Georgia,
+    "Times New Roman", serif;
 }
 
 :root[data-theme="dark"] {
