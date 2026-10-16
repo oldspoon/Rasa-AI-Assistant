@@ -1,0 +1,5 @@
+# endpoints.yml
+# Tells Rasa Core where to find the custom action server.
+
+action_endpoint:
+  url: "http://localhost:5055/webhook"

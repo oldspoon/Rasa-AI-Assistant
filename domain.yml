@@ -1,0 +1,74 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - thank_you
+  - introduce_self
+  - ask_lecture_days
+  - ask_practical_days
+  - ask_campus
+  - ask_time
+  - ask_subject
+  - ask_room
+  - ask_all_details
+  - out_of_scope
+
+entities:
+  - first_name
+  - last_name
+
+slots:
+  first_name:
+    type: text
+    mappings:
+      - type: from_entity
+        entity: first_name
+
+  last_name:
+    type: text
+    mappings:
+      - type: from_entity
+        entity: last_name
+
+responses:
+  utter_greet:
+    - text: "Hello! Welcome to the Campus Attendance System. Please tell me your first name and last name so I can look up your schedule."
+
+  utter_goodbye:
+    - text: "Goodbye! Have a great session on campus!"
+
+  utter_youre_welcome:
+    - text: "You're welcome! Let me know if you need anything else about your schedule."
+
+  utter_ask_name:
+    - text: "Could you please provide your first name and last name?"
+
+  utter_student_not_found:
+    - text: "I'm sorry, I couldn't find a student with the name {first_name} {last_name} in our attendance records. Please check your name and try again."
+
+  utter_student_found:
+    - text: "Great! I found your record, {first_name} {last_name}. You can now ask me about your schedule. For example: 'What days do I have lectures?', 'What days do I have practicals?', or 'Give me all my schedule details.'"
+
+  utter_no_student_loaded:
+    - text: "It seems I don't have your information yet. Please introduce yourself first by telling me your first name and last name."
+
+  utter_out_of_scope:
+    - text: "I'm sorry, I can only help with campus attendance and schedule information. Please ask me something related to your timetable."
+
+  utter_default:
+    - text: "I didn't quite understand that. You can ask me about your lecture or practical days, campus location, time, subject, or room number."
+
+actions:
+  - action_lookup_student
+  - action_answer_lecture_days
+  - action_answer_practical_days
+  - action_answer_campus
+  - action_answer_time
+  - action_answer_subject
+  - action_answer_room
+  - action_answer_all_details
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
