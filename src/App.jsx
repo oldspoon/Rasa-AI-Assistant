@@ -321,7 +321,7 @@ export default function App() {
                 Student records
               </span>
               <span className="badge">
-                <i className="fa-solid fa-robot" aria-hidden="true" />
+                <i className="fa-solid fa-gears" aria-hidden="true" />
                 Rasa 3.6
               </span>
               <span className="badge">
