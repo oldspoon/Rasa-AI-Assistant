@@ -8,9 +8,12 @@
 #   ./dev-run.sh --setup      create .venv and install requirements.txt
 #   ./dev-run.sh -h           show this help
 #
-# On Windows, run this with Git Bash, or use .\dev-run.ps1 instead.
+# On Windows, run this with Git Bash.
 # =============================================================================
 set -euo pipefail
+
+# Keep Rasa's emoji/box output from crashing on legacy Windows code pages
+export PYTHONUTF8=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
