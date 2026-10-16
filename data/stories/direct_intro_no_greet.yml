@@ -1,0 +1,17 @@
+# Student skips greet, goes straight to intro
+version: "3.1"
+
+stories:
+- story: direct intro no greet
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Liam"
+        - last_name: "Anderson"
+    - action: action_lookup_student
+    - intent: ask_campus
+    - action: action_answer_campus
+    - intent: ask_time
+    - action: action_answer_time
+    - intent: ask_room
+    - action: action_answer_room

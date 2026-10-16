@@ -1,0 +1,13 @@
+# Student asks for full schedule details
+version: "3.1"
+
+stories:
+- story: student asks all details after intro
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Carol"
+        - last_name: "Williams"
+    - action: action_lookup_student
+    - intent: ask_all_details
+    - action: action_answer_all_details
