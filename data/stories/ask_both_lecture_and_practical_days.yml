@@ -1,0 +1,15 @@
+# Student asks lecture days then practical days
+version: "3.1"
+
+stories:
+- story: ask both lecture and practical days
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Mia"
+        - last_name: "Thomas"
+    - action: action_lookup_student
+    - intent: ask_lecture_days
+    - action: action_answer_lecture_days
+    - intent: ask_practical_days
+    - action: action_answer_practical_days

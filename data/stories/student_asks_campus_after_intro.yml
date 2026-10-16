@@ -1,0 +1,13 @@
+# Student asks campus
+version: "3.1"
+
+stories:
+- story: student asks campus after intro
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "David"
+        - last_name: "Brown"
+    - action: action_lookup_student
+    - intent: ask_campus
+    - action: action_answer_campus

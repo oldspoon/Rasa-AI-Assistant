@@ -1,0 +1,13 @@
+# Student asks subject
+version: "3.1"
+
+stories:
+- story: student asks subject after intro
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Frank"
+        - last_name: "Garcia"
+    - action: action_lookup_student
+    - intent: ask_subject
+    - action: action_answer_subject
