@@ -9,6 +9,14 @@ demo.txt
 /.agents/
 /skills-lock.json
 
+# Local environment files (never commit DATABASE_URL or other secrets).
+.env
+.env.local
+
+# Neon CLI linkage (project/branch IDs).
+.neon
+.neon/
+
 # Python
 __pycache__/
 *.py[cod]
