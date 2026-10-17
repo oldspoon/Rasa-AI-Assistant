@@ -272,6 +272,8 @@ const loginUser = document.getElementById("loginUser");
 const loginPass = document.getElementById("loginPass");
 const loginError = document.getElementById("loginError");
 const themeToggle = document.getElementById("themeToggle");
+const micBtn = document.getElementById("micBtn");
+const speechHint = document.getElementById("speechHint");
 
 let student = null;
 let busy = false;
@@ -349,6 +351,7 @@ function setBusy(value) {
   busy = value;
   sendBtn.disabled = value;
   inputEl.disabled = value;
+  micBtn.disabled = value;
   resetBtn.disabled = value;
   logoutBtn.disabled = value;
 }
@@ -376,6 +379,7 @@ function send(text) {
   const clean = (text || "").trim();
   if (!clean || busy) return;
 
+  stopListening(); // sending ends dictation
   appendMessage("user", clean);
   inputEl.value = "";
   setBusy(true);
@@ -401,6 +405,7 @@ function greetSignedIn() {
 
 function resetChat() {
   if (!signedIn) return;
+  stopListening();
   setBusy(false);
   messagesEl.replaceChildren();
   const hint = document.createElement("div");
@@ -417,6 +422,108 @@ formEl.addEventListener("submit", (e) => {
   e.preventDefault();
   send(inputEl.value);
 });
+
+/* --- voice input (English) --------------------------------------------------
+   The browser's built-in speech recognition (Chrome, Edge and Safari ship it;
+   Firefox does not, so the mic button stays hidden there). Interim results
+   stream into the message box; the final transcript stays for review. */
+
+const DEFAULT_PLACEHOLDER = inputEl.placeholder;
+const SpeechRecognitionClass =
+  window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+const SPEECH_HINT_MS = 6000;
+let recognizer = null;
+let speechActive = false; // recognition is running / may write to the box
+let speechBase = ""; // text already typed when the mic starts
+let speechHintTimer = 0;
+
+function showSpeechHint(message) {
+  speechHint.textContent = message;
+  speechHint.hidden = false;
+  clearTimeout(speechHintTimer);
+  speechHintTimer = setTimeout(() => {
+    speechHint.hidden = true;
+  }, SPEECH_HINT_MS);
+}
+
+// stop() throws when the recognizer is not running - a no-op for us.
+function stopListening() {
+  speechActive = false; // late results must not rewrite the box
+  if (!recognizer) return;
+  try {
+    recognizer.stop();
+  } catch {
+    /* not running */
+  }
+}
+
+if (SpeechRecognitionClass) {
+  recognizer = new SpeechRecognitionClass();
+  recognizer.lang = "en-US"; // English
+  recognizer.interimResults = true;
+  recognizer.continuous = false; // one utterance per tap
+  recognizer.maxAlternatives = 1;
+
+  recognizer.onstart = () => {
+    micBtn.classList.add("listening");
+    micBtn.setAttribute("aria-pressed", "true");
+    inputEl.placeholder = "Listening…";
+  };
+  recognizer.onresult = (event) => {
+    if (!speechActive) return;
+    let finalText = "";
+    let interimText = "";
+    for (const result of event.results) {
+      if (result.isFinal) finalText += result[0].transcript;
+      else interimText += result[0].transcript;
+    }
+    const spoken = `${finalText} ${interimText}`.replace(/\s+/g, " ").trim();
+    inputEl.value = spoken
+      ? speechBase
+        ? `${speechBase} ${spoken}`
+        : spoken
+      : speechBase;
+  };
+  recognizer.onerror = (event) => {
+    if (event.error === "aborted") return; // stopped on purpose
+    const hints = {
+      "not-allowed":
+        "Microphone access is blocked - allow it for this site in your browser and try again.",
+      "service-not-allowed": "Speech recognition is blocked in this browser.",
+      "no-speech": "I didn't hear anything - tap the mic and try again.",
+      "audio-capture": "No microphone was found on this device.",
+      network:
+        "Speech recognition needs a network connection - check it and try again.",
+    };
+    showSpeechHint(
+      hints[event.error] || "Voice input didn't work - please try again."
+    );
+  };
+  recognizer.onend = () => {
+    speechActive = false;
+    micBtn.classList.remove("listening");
+    micBtn.setAttribute("aria-pressed", "false");
+    inputEl.placeholder = DEFAULT_PLACEHOLDER;
+  };
+
+  micBtn.hidden = false;
+  micBtn.addEventListener("click", () => {
+    if (micBtn.classList.contains("listening")) {
+      stopListening();
+      return;
+    }
+    if (busy) return;
+    speechBase = inputEl.value.trim();
+    speechActive = true;
+    try {
+      recognizer.start();
+    } catch {
+      speechActive = false;
+      /* already running */
+    }
+  });
+}
 
 const loginSubmit = loginForm.querySelector('button[type="submit"]');
 
@@ -448,6 +555,8 @@ loginForm.addEventListener("submit", async (e) => {
 });
 
 logoutBtn.addEventListener("click", () => {
+  stopListening();
+  speechHint.hidden = true;
   signedIn = false;
   student = null;
   setBusy(false);
