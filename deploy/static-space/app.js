@@ -351,7 +351,7 @@ function setBusy(value) {
   busy = value;
   sendBtn.disabled = value;
   inputEl.disabled = value;
-  micBtn.disabled = value;
+  micBtn.disabled = value || transcribing;
   resetBtn.disabled = value;
   logoutBtn.disabled = value;
 }
@@ -432,11 +432,30 @@ const DEFAULT_PLACEHOLDER = inputEl.placeholder;
 const SpeechRecognitionClass =
   window.SpeechRecognition || window.webkitSpeechRecognition || null;
 
+// Opera's Chromium builds ship no speech service (the API exists but no event
+// ever fires) and Firefox has no API at all - both use the on-device model.
+const IS_OPERA = /OPR\//.test(navigator.userAgent);
+const CAN_WHISPER =
+  typeof MediaRecorder !== "undefined" &&
+  !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+const BROWSER_SPEECH_OK = !!SpeechRecognitionClass && !IS_OPERA;
+let voiceMode = BROWSER_SPEECH_OK ? "browser" : CAN_WHISPER ? "whisper" : "none";
+
 const SPEECH_HINT_MS = 6000;
+const WHISPER_MODEL = "onnx-community/whisper-base.en";
+const WHISPER_CDN =
+  "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js";
+
 let recognizer = null;
 let speechActive = false; // recognition is running / may write to the box
 let speechBase = ""; // text already typed when the mic starts
 let speechHintTimer = 0;
+let speechWatchdog = 0;
+let recorder = null;
+let recordChunks = [];
+let recordStream = null;
+let recordTimer = 0;
+let transcribing = false;
 
 function showSpeechHint(message) {
   speechHint.textContent = message;
@@ -450,6 +469,7 @@ function showSpeechHint(message) {
 // stop() throws when the recognizer is not running - a no-op for us.
 function stopListening() {
   speechActive = false; // late results must not rewrite the box
+  clearTimeout(speechWatchdog);
   if (!recognizer) return;
   try {
     recognizer.stop();
@@ -458,7 +478,223 @@ function stopListening() {
   }
 }
 
-if (SpeechRecognitionClass) {
+/* --- on-device fallback: MediaRecorder + Whisper (transformers.js) -------- */
+
+let whisperLibPromise = null;
+function loadWhisperLib() {
+  // The published dist file is an ES module - import it dynamically
+  // (dynamic import is allowed in a classic script; a <script> tag is not).
+  if (!whisperLibPromise) {
+    whisperLibPromise = import(WHISPER_CDN).catch((err) => {
+      whisperLibPromise = null; // allow a retry on the next tap
+      throw err;
+    });
+  }
+  return whisperLibPromise;
+}
+
+let whisperAsrPromise = null;
+function loadWhisperModel(onProgress) {
+  if (!whisperAsrPromise) {
+    whisperAsrPromise = loadWhisperLib()
+      .then(({ pipeline, env }) => {
+        env.allowLocalModels = false; // fetch the model from the Hub
+        return pipeline("automatic-speech-recognition", WHISPER_MODEL, {
+          dtype: "q8",
+          device: "wasm",
+          progress_callback: (p) => {
+            if (onProgress && p && p.status === "progress" && typeof p.progress === "number") {
+              onProgress(Math.round(p.progress));
+            }
+          },
+        });
+      })
+      .catch((err) => {
+        whisperAsrPromise = null; // allow a retry on the next tap
+        throw err;
+      });
+  }
+  return whisperAsrPromise;
+}
+
+async function blobToWhisperAudio(blob) {
+  const bytes = await blob.arrayBuffer();
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AudioCtx();
+  let decoded;
+  try {
+    decoded = await ctx.decodeAudioData(bytes);
+  } finally {
+    if (ctx.close) ctx.close();
+  }
+  const rate = 16000;
+  const length = Math.max(1, Math.ceil(decoded.duration * rate));
+  const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const off = new OfflineCtx(1, length, rate);
+  const source = off.createBufferSource();
+  source.buffer = decoded;
+  source.connect(off.destination);
+  source.start();
+  const rendered = await off.startRendering();
+  return rendered.getChannelData(0);
+}
+
+function updateMicPlaceholder() {
+  inputEl.placeholder = transcribing
+    ? "Transcribing…"
+    : micBtn.classList.contains("listening")
+      ? "Listening…"
+      : DEFAULT_PLACEHOLDER;
+}
+
+function useWhisper(message) {
+  if (!CAN_WHISPER) {
+    showSpeechHint(
+      "Voice input doesn't work in this browser - please try Chrome, Edge or Safari, or type your question."
+    );
+    return;
+  }
+  voiceMode = "whisper";
+  if (message) showSpeechHint(message);
+}
+
+// The built-in service is dead in some Chromium builds (Opera GX): start()
+// returns but no event ever fires. When the microphone is already allowed,
+// give it a moment, then fall back to the on-device model.
+function armSpeechWatchdog() {
+  const arm = (state) => {
+    if (state !== "granted") return; // a permission prompt is its own UI
+    clearTimeout(speechWatchdog);
+    speechWatchdog = setTimeout(() => {
+      if (!speechActive) return;
+      speechActive = false;
+      if (recognizer) {
+        try {
+          recognizer.abort();
+        } catch {
+          /* not running */
+        }
+      }
+      micBtn.classList.remove("listening");
+      micBtn.setAttribute("aria-pressed", "false");
+      updateMicPlaceholder();
+      useWhisper(
+        "This browser's speech service isn't available - switched to on-device voice. Tap the mic and speak."
+      );
+    }, 2500);
+  };
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: "microphone" }).then(
+        (p) => arm(p && p.state),
+        () => {}
+      );
+    }
+  } catch {
+    /* Permissions API unsupported - the error handler covers it */
+  }
+}
+
+async function startWhisperRecording() {
+  if (transcribing) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const types = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus",
+      "audio/mp4",
+    ];
+    const mimeType =
+      typeof MediaRecorder.isTypeSupported === "function"
+        ? types.find((t) => MediaRecorder.isTypeSupported(t))
+        : undefined;
+    const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recorder = rec;
+    recordChunks = [];
+    rec.ondataavailable = (e) => {
+      if (e.data && e.data.size) recordChunks.push(e.data);
+    };
+    rec.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      recordStream = null;
+      transcribeRecording(
+        new Blob(recordChunks, { type: rec.mimeType || "audio/webm" })
+      );
+    };
+    recordStream = stream;
+    speechBase = inputEl.value.trim();
+    // Fetch and warm up the small speech model while the user speaks.
+    loadWhisperModel((pct) =>
+      showSpeechHint(
+        pct >= 100
+          ? "Preparing the on-device speech model…"
+          : "Downloading the on-device speech model… " + pct + "%"
+      )
+    ).catch(() => {});
+    rec.start();
+    micBtn.classList.add("listening");
+    micBtn.setAttribute("aria-pressed", "true");
+    updateMicPlaceholder();
+    clearTimeout(recordTimer);
+    recordTimer = setTimeout(stopWhisperRecording, 30000);
+  } catch (err) {
+    showSpeechHint(
+      err && err.name === "NotAllowedError"
+        ? "Microphone access is blocked - allow it for this site in your browser and try again."
+        : "No microphone was found on this device."
+    );
+  }
+}
+
+function stopWhisperRecording() {
+  clearTimeout(recordTimer);
+  const rec = recorder;
+  recorder = null;
+  if (rec && rec.state !== "inactive") rec.stop(); // -> transcribeRecording
+  micBtn.classList.remove("listening");
+  micBtn.setAttribute("aria-pressed", "false");
+  updateMicPlaceholder();
+}
+
+async function transcribeRecording(blob) {
+  if (!blob.size) {
+    showSpeechHint("I didn't hear anything - tap the mic and try again.");
+    return;
+  }
+  transcribing = true;
+  micBtn.disabled = true;
+  updateMicPlaceholder();
+  showSpeechHint("Transcribing…");
+  try {
+    const asr = await loadWhisperModel();
+    const samples = await blobToWhisperAudio(blob);
+    const result = await asr(samples);
+    const text = String((result && result.text) || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!text) {
+      showSpeechHint("I didn't hear anything - tap the mic and try again.");
+      return;
+    }
+    inputEl.value = speechBase ? speechBase + " " + text : text;
+    clearTimeout(speechHintTimer);
+    speechHint.hidden = true;
+  } catch (err) {
+    console.warn("[attendance-bot] on-device transcription failed:", err);
+    showSpeechHint(
+      "Voice transcription didn't work - check your connection and try again."
+    );
+  } finally {
+    transcribing = false;
+    micBtn.disabled = busy;
+    updateMicPlaceholder();
+  }
+}
+
+/* --- wiring --------------------------------------------------------------- */
+
+if (BROWSER_SPEECH_OK) {
   recognizer = new SpeechRecognitionClass();
   recognizer.lang = "en-US"; // English
   recognizer.interimResults = true;
@@ -466,9 +702,10 @@ if (SpeechRecognitionClass) {
   recognizer.maxAlternatives = 1;
 
   recognizer.onstart = () => {
+    clearTimeout(speechWatchdog);
     micBtn.classList.add("listening");
     micBtn.setAttribute("aria-pressed", "true");
-    inputEl.placeholder = "Listening…";
+    updateMicPlaceholder();
   };
   recognizer.onresult = (event) => {
     if (!speechActive) return;
@@ -487,14 +724,19 @@ if (SpeechRecognitionClass) {
   };
   recognizer.onerror = (event) => {
     if (event.error === "aborted") return; // stopped on purpose
+    clearTimeout(speechWatchdog);
+    if (event.error === "network" || event.error === "service-not-allowed") {
+      // The built-in service is unreachable here - use the on-device model.
+      useWhisper(
+        "This browser's speech service isn't available - switched to on-device voice. Tap the mic and speak."
+      );
+      return;
+    }
     const hints = {
       "not-allowed":
         "Microphone access is blocked - allow it for this site in your browser and try again.",
-      "service-not-allowed": "Speech recognition is blocked in this browser.",
       "no-speech": "I didn't hear anything - tap the mic and try again.",
       "audio-capture": "No microphone was found on this device.",
-      network:
-        "Speech recognition needs a network connection - check it and try again.",
     };
     showSpeechHint(
       hints[event.error] || "Voice input didn't work - please try again."
@@ -502,28 +744,41 @@ if (SpeechRecognitionClass) {
   };
   recognizer.onend = () => {
     speechActive = false;
+    clearTimeout(speechWatchdog);
     micBtn.classList.remove("listening");
     micBtn.setAttribute("aria-pressed", "false");
-    inputEl.placeholder = DEFAULT_PLACEHOLDER;
+    updateMicPlaceholder();
   };
-
-  micBtn.hidden = false;
-  micBtn.addEventListener("click", () => {
-    if (micBtn.classList.contains("listening")) {
-      stopListening();
-      return;
-    }
-    if (busy) return;
-    speechBase = inputEl.value.trim();
-    speechActive = true;
-    try {
-      recognizer.start();
-    } catch {
-      speechActive = false;
-      /* already running */
-    }
-  });
 }
+
+// Show the mic whenever there is any usable voice path.
+if (voiceMode !== "none") {
+  micBtn.hidden = false;
+}
+
+micBtn.addEventListener("click", () => {
+  if (voiceMode === "whisper") {
+    if (transcribing) return;
+    if (micBtn.classList.contains("listening")) stopWhisperRecording();
+    else if (!busy) startWhisperRecording();
+    return;
+  }
+  if (voiceMode !== "browser") return;
+  if (micBtn.classList.contains("listening")) {
+    stopListening();
+    return;
+  }
+  if (busy) return;
+  speechBase = inputEl.value.trim();
+  speechActive = true;
+  try {
+    recognizer.start();
+    armSpeechWatchdog();
+  } catch {
+    speechActive = false;
+    /* already running */
+  }
+});
 
 const loginSubmit = loginForm.querySelector('button[type="submit"]');
 
