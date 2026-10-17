@@ -34,7 +34,7 @@ const STUDENTS = [
 
 const SAY = {
   welcome:
-    "Hello! Welcome to the Campus Attendance System. Please tell me your first name and last name so I can look up your schedule.",
+    "Hello! Welcome to the Campus Attendance System. Ask me about your schedule - lecture or practical days, campus, time, subject or room. If I don't know you yet, tell me your first and last name (e.g. 'My name is Alice Johnson').",
   found: (f, l) =>
     `Great! I found your record, ${f} ${l}. You can now ask me about your schedule. For example: 'What days do I have lectures?', 'What days do I have practicals?', or 'Give me all my schedule details.'`,
   notFound: (f, l) =>
@@ -192,4 +192,25 @@ export function reply(text, student) {
   // 5. Neither a question nor an introduction.
   if (RE.filler.test(t)) return { texts: [SAY.fallback], student };
   return { texts: [SAY.outOfScope], student };
+}
+
+/**
+ * Offline check of the login screen's credentials - the same rule the live
+ * backend applies (rasa/auth_channel.py): username = first+last name,
+ * password = last+first name, lowercase, whitespace ignored.
+ * Returns the student object on success, otherwise null.
+ */
+export function checkCredentials(username, password) {
+  const u = String(username ?? "").toLowerCase().replace(/\s+/g, "");
+  const p = String(password ?? "").toLowerCase().replace(/\s+/g, "");
+  if (!u || !p) return null;
+  for (const s of STUDENTS) {
+    if (
+      `${s.first}${s.last}`.toLowerCase() === u &&
+      `${s.last}${s.first}`.toLowerCase() === p
+    ) {
+      return s;
+    }
+  }
+  return null;
 }

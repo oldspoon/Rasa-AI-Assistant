@@ -44,10 +44,12 @@ pinned: false
 
 Campus attendance assistant. The Rasa server and its custom action server run
 inside this Space; the React chat front end (GitHub Pages) calls the REST
-webhook. Set the `DATABASE_URL` secret to point the action server at a hosted
-Postgres database (Neon); without it the bundled SQLite file is used. Every
-conversation is logged under its UUID (see `rasa/tracker_store.py`); set
-`DATABASE_URL_UNPOOLED` so the tracker store connects directly to Neon.
+webhook and the login endpoint (`/auth/login`). Set the `DATABASE_URL` secret
+to point the action server at a hosted Postgres database (Neon); without it the
+bundled SQLite file is used. Keep the `users` table seeded for logins
+(`populate_db.py --users-only`). Every conversation is logged under its UUID
+(see `rasa/tracker_store.py`); set `DATABASE_URL_UNPOOLED` so the tracker
+store connects directly to Neon.
 EOF
 
 cd "$STAGE"

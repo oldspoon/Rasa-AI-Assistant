@@ -68,6 +68,21 @@ def summary_by_session_type():
         print(f"  {r['session_type']:<12} → {r['total']} students")
 
 
+def print_login_accounts():
+    """The `users` table: username = first+last, password = last+first."""
+    try:
+        rows = db.fetch_all(
+            "SELECT username, password, first_name, last_name FROM users ORDER BY id"
+        )
+    except Exception:
+        print("\nNo `users` table yet - create the login accounts with:")
+        print("  python database/populate_db.py --users-only\n")
+        return
+    print("\nLogin accounts (username / password):")
+    for r in rows:
+        print(f"  {r['username']:<20} {r['password']:<20} {r['first_name']} {r['last_name']}")
+
+
 if __name__ == "__main__":
     print("\n═══════════════════  ALL STUDENTS  ═══════════════════\n")
     print_all_students()
@@ -76,3 +91,5 @@ if __name__ == "__main__":
     print()
     lookup_student("Alice", "Johnson")
     lookup_student("Unknown", "Person")
+    print_login_accounts()
+    print()
