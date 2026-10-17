@@ -2,10 +2,15 @@
    Campus Attendance Bot — in-browser demo.
 
    A client-side replay of the deployed bot's dialogue: the same intents, the
-   same response templates and the same 15 seeded students, so the demo works
-   with no server. The real stack (Rasa 3.6 + rasa-sdk action server + SQLite /
-   Neon Postgres) produces identical answers — the transcripts on the main
-   README were recorded from it.
+   same response templates, the same 15 seeded students and the same student
+   login rule (username = first+last, password = last+first), so the chat
+   works with no server. The sign-in is checked against the live database
+   when reachable — a Neon Function endpoint (neon/functions/login/) running
+   the same rule as the bot's /auth/login channel (rasa/auth_channel.py); if
+   it cannot be reached, the rule is applied in the browser instead. The
+   real stack (Rasa 3.6 + rasa-sdk action server + SQLite / Neon Postgres)
+   produces identical answers — the transcripts on the main README were
+   recorded from it.
    ============================================================================= */
 "use strict";
 
@@ -33,7 +38,7 @@ const STUDENTS = [
 
 const SAY = {
   welcome:
-    "Hello! Welcome to the Campus Attendance System. Please tell me your first name and last name so I can look up your schedule.",
+    "Hello! Welcome to the Campus Attendance System. Ask me about your schedule - lecture or practical days, campus, time, subject or room. If I don't know you yet, tell me your first and last name (e.g. 'My name is Alice Johnson').",
   found: (f, l) =>
     `Great! I found your record, ${f} ${l}. You can now ask me about your schedule. For example: 'What days do I have lectures?', 'What days do I have practicals?', or 'Give me all my schedule details.'`,
   notFound: (f, l) =>
@@ -193,6 +198,64 @@ function reply(text, student) {
   return { texts: [SAY.outOfScope], student };
 }
 
+/**
+ * Offline check of the login form's credentials - the same rule the live
+ * backend applies (rasa/auth_channel.py): username = first+last name,
+ * password = last+first name, lowercase, whitespace ignored.
+ * Returns the student object on success, otherwise null.
+ */
+function checkCredentials(username, password) {
+  const u = String(username || "").toLowerCase().replace(/\s+/g, "");
+  const p = String(password || "").toLowerCase().replace(/\s+/g, "");
+  if (!u || !p) return null;
+  for (const s of STUDENTS) {
+    if (
+      `${s.first}${s.last}`.toLowerCase() === u &&
+      `${s.last}${s.first}`.toLowerCase() === p
+    ) {
+      return s;
+    }
+  }
+  return null;
+}
+
+/* --- the live login endpoint -------------------------------------------------
+   A Neon Function deployed next to the bot's database (the `users` table),
+   with the same request/response contract as the Rasa channel
+   (rasa/auth_channel.py). When it is unreachable, the in-browser rule above
+   answers instead, so the demo always works. */
+
+const AUTH_URL =
+  "https://br-empty-violet-b70xbc42-login.compute.c-13.us-east-1.aws.neon.tech/";
+
+async function loginRequest(username, password) {
+  try {
+    const res = await fetch(AUTH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (res.status === 400 || res.status === 401) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data || !data.ok || !data.first_name || !data.last_name) {
+      throw new Error("unexpected login response");
+    }
+    return (
+      STUDENTS.find(
+        (s) => s.first === data.first_name && s.last === data.last_name
+      ) ?? checkCredentials(username, password)
+    );
+  } catch (err) {
+    console.info(
+      `[campus-demo] login endpoint unreachable (${
+        err && err.message ? err.message : err
+      }) — checked in the browser`
+    );
+    return checkCredentials(username, password);
+  }
+}
+
 /* --- chat UI --------------------------------------------------------------- */
 
 const messagesEl = document.getElementById("messages");
@@ -201,10 +264,18 @@ const formEl = document.getElementById("chatForm");
 const inputEl = document.getElementById("chatInput");
 const sendBtn = document.getElementById("sendBtn");
 const resetBtn = document.getElementById("resetChat");
+const logoutBtn = document.getElementById("logoutBtn");
+const loginView = document.getElementById("loginView");
+const chatView = document.getElementById("chatView");
+const loginForm = document.getElementById("loginForm");
+const loginUser = document.getElementById("loginUser");
+const loginPass = document.getElementById("loginPass");
+const loginError = document.getElementById("loginError");
 const themeToggle = document.getElementById("themeToggle");
 
 let student = null;
 let busy = false;
+let signedIn = false;
 
 function fmtTime(ts) {
   return new Date(ts).toLocaleTimeString([], {
@@ -278,6 +349,8 @@ function setBusy(value) {
   busy = value;
   sendBtn.disabled = value;
   inputEl.disabled = value;
+  resetBtn.disabled = value;
+  logoutBtn.disabled = value;
 }
 
 function botRespond(texts) {
@@ -312,18 +385,30 @@ function send(text) {
   botRespond(result.texts);
 }
 
+function appendSystem(text) {
+  const div = document.createElement("div");
+  div.className = "msg msg-system";
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function greetSignedIn() {
+  appendSystem(`Signed in as ${student.first} ${student.last}`);
+  setBusy(true);
+  botRespond([SAY.found(student.first, student.last)]);
+}
+
 function resetChat() {
-  student = null;
+  if (!signedIn) return;
   setBusy(false);
   messagesEl.replaceChildren();
   const hint = document.createElement("div");
   hint.className = "msg msg-system";
   hint.textContent =
-    "In-browser replay of the deployed bot — the same intents, replies and 15 seeded students. Nothing is sent to a server.";
+    "In-browser replay of the deployed bot — the same intents, replies and 15 seeded students. Only the sign-in check talks to the live database; the chat itself stays in the browser.";
   messagesEl.appendChild(hint);
-  appendMessage("bot", SAY.welcome);
-  renderQuickReplies();
-  inputEl.focus();
+  greetSignedIn();
 }
 
 /* --- wiring ---------------------------------------------------------------- */
@@ -331,6 +416,49 @@ function resetChat() {
 formEl.addEventListener("submit", (e) => {
   e.preventDefault();
   send(inputEl.value);
+});
+
+const loginSubmit = loginForm.querySelector('button[type="submit"]');
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (loginSubmit.disabled) return;
+  loginSubmit.disabled = true;
+  loginSubmit.textContent = "Signing in…";
+  try {
+    const found = await loginRequest(loginUser.value, loginPass.value);
+    if (!found) {
+      loginError.textContent =
+        "Wrong username or password. Username: first name + last name · password: last name + first name — e.g. alicejohnson / johnsonalice.";
+      loginError.hidden = false;
+      return;
+    }
+    loginError.hidden = true;
+    student = found;
+    signedIn = true;
+    loginView.hidden = true;
+    chatView.hidden = false;
+    resetBtn.hidden = false;
+    logoutBtn.hidden = false;
+    resetChat();
+  } finally {
+    loginSubmit.disabled = false;
+    loginSubmit.textContent = "Sign in";
+  }
+});
+
+logoutBtn.addEventListener("click", () => {
+  signedIn = false;
+  student = null;
+  setBusy(false);
+  chatView.hidden = true;
+  loginView.hidden = false;
+  resetBtn.hidden = true;
+  logoutBtn.hidden = true;
+  loginUser.value = "";
+  loginPass.value = "";
+  loginError.hidden = true;
+  loginUser.focus();
 });
 
 resetBtn.addEventListener("click", resetChat);
@@ -346,4 +474,6 @@ themeToggle.addEventListener("click", () => {
 themeToggle.textContent =
   document.documentElement.dataset.theme === "dark" ? "☀️" : "🌙";
 
-resetChat();
+/* --- initial state: the login gate (chat opens after sign-in) -------------- */
+
+loginUser.focus();

@@ -33,7 +33,7 @@ slots:
 
 responses:
   utter_greet:
-    - text: "Hello! Welcome to the Campus Attendance System. Please tell me your first name and last name so I can look up your schedule."
+    - text: "Hello! Welcome to the Campus Attendance System. Ask me about your schedule - lecture or practical days, campus, time, subject or room. If I don't know you yet, tell me your first and last name (e.g. 'My name is Alice Johnson')."
 
   utter_goodbye:
     - text: "Goodbye! Have a great session on campus!"

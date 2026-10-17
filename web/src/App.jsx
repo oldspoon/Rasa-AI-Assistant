@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { reply as demoReply } from "./demoEngine.js";
+import { reply as demoReply, checkCredentials } from "./demoEngine.js";
 
 const K_SENDER = "attendance-bot-sender";
+const K_USER = "attendance-bot-user";
 const K_THEME = "attendance-bot-theme";
 const K_CVD = "attendance-bot-cvd";
 const K_LOG_PREFIX = "attendance-bot-log-";
@@ -38,12 +39,6 @@ const BASE_REPLIES = [
   "Give me all my schedule details.",
 ];
 
-const WELCOME_TEXT =
-  "Hi! I'm the campus attendance bot.\n" +
-  'Tell me your first and last name (e.g. "My name is Alice Johnson").';
-
-const welcomeMessage = () => ({ from: "bot", text: WELCOME_TEXT, ts: Date.now() });
-
 function newSenderId() {
   return crypto.randomUUID
     ? crypto.randomUUID()
@@ -59,6 +54,27 @@ function getSender() {
     localStorage.setItem(K_SENDER, id);
   }
   return id;
+}
+
+// The signed-in student, kept for the tab (sessionStorage) so a reload does
+// not force a second login.
+function readStoredUser() {
+  try {
+    const user = JSON.parse(sessionStorage.getItem(K_USER) ?? "null");
+    return user && user.first && user.last ? user : null;
+  } catch {
+    return null;
+  }
+}
+
+function signedInMessage(user) {
+  return {
+    from: "system",
+    text:
+      `Signed in as ${user.first} ${user.last}` +
+      (user.via === "offline" ? " (checked against the offline demo accounts)" : ""),
+    ts: Date.now(),
+  };
 }
 
 // Every turn is tracked under the conversation's UUID: one console line for
@@ -99,6 +115,18 @@ function trackTurn(sender, from, text, extra) {
 // :5005. A production build (e.g. on GitHub Pages) sets VITE_RASA_URL to the
 // public Rasa endpoint instead, since the dev proxy doesn't exist there.
 const WEBHOOK = import.meta.env.VITE_RASA_URL ?? "/api/webhooks/rest/webhook";
+
+// Production builds point VITE_AUTH_URL at the Neon login function
+// (neon/functions/login/) - it sits next to the database and stays reachable
+// even when the Rasa backend is asleep. Locally (and as a fallback) the
+// login endpoint is derived from the Rasa URL: a custom channel on the same
+// server (rasa/auth_channel.py), i.e. /api/auth/login through the dev proxy
+// and <rasa-url>/auth/login hosted.
+const AUTH_URL =
+  import.meta.env.VITE_AUTH_URL ??
+  ((import.meta.env.VITE_RASA_URL
+    ? import.meta.env.VITE_RASA_URL.replace(/\/webhooks\/rest\/webhook\/?$/, "")
+    : "/api") + "/auth/login");
 
 // The bot's replies use **bold** - render just that bit of markdown.
 function RichText({ text }) {
@@ -144,9 +172,19 @@ export default function App() {
     localStorage.setItem(K_CVD, cvd);
   }, [cvd]);
 
+  // --- login state ---
+  const [user, setUser] = useState(readStoredUser);
+  const [loginName, setLoginName] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+
   // --- chat state ---
   const [sender, setSender] = useState(() => getSender());
-  const [messages, setMessages] = useState(() => [welcomeMessage()]);
+  const [messages, setMessages] = useState(() => {
+    const saved = readStoredUser();
+    return saved ? [signedInMessage(saved)] : [];
+  });
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -155,13 +193,15 @@ export default function App() {
   const bottomRef = useRef(null);
   const menuRef = useRef(null);
   const demoStateRef = useRef({ student: null });
+  // The sign-in introduction ("My name is ...") is sent silently; if the
+  // backend was unreachable when it went out, it is delivered again before
+  // the next message reaches the live backend, so the dialogue still has the
+  // student on record. `null` means nothing is pending.
+  const pendingIntroRef = useRef(null);
 
-  const userHasSpoken = messages.some((m) => m.from === "user");
-  const quickReplies = [
-    ...(userHasSpoken ? [] : ["My name is Alice Johnson"]),
-    ...BASE_REPLIES,
-  ];
-  const showQuickReplies = !busy && messages[messages.length - 1]?.from === "bot";
+  const quickReplies = BASE_REPLIES;
+  const showQuickReplies =
+    user && !busy && messages[messages.length - 1]?.from === "bot";
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -186,19 +226,43 @@ export default function App() {
     };
   }, [menuOpen]);
 
-  async function sendMessage(raw) {
+  // One chat turn. `hidden` skips the user bubble (the login screen sends
+  // the introduction silently); `sender` overrides the conversation id (a
+  // brand-new conversation still belongs to the signed-in student).
+  async function sendMessage(
+    raw,
+    { hidden = false, sender: senderOverride, intro = false } = {}
+  ) {
     const message = raw.trim();
     if (!message || busy) return;
     setMenuOpen(false);
+    const activeSender = senderOverride ?? sender;
 
-    setMessages((msgs) => [...msgs, { from: "user", text: message, ts: Date.now() }]);
+    if (!hidden) {
+      setMessages((msgs) => [...msgs, { from: "user", text: message, ts: Date.now() }]);
+    }
     setBusy(true);
-    trackTurn(sender, "user", message);
+    trackTurn(activeSender, "user", message, hidden ? { hidden: true } : undefined);
     try {
+      // An introduction that never reached the backend (it was asleep at
+      // sign-in): deliver it now, before this message is interpreted.
+      const pending = pendingIntroRef.current;
+      if (!intro && pending && pending.sender === activeSender) {
+        const catchUp = await fetch(WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sender: activeSender, message: pending.text }),
+        });
+        if (!catchUp.ok) throw new Error(`HTTP ${catchUp.status}`);
+        pendingIntroRef.current = null;
+        trackTurn(activeSender, "notice", "introduction re-sent to the live backend", {
+          engine: "rasa",
+        });
+      }
       const res = await fetch(WEBHOOK, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sender, message }),
+        body: JSON.stringify({ sender: activeSender, message }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const replies = await res.json(); // [{ recipient_id, text }, ...]
@@ -209,14 +273,15 @@ export default function App() {
       ]);
       replies
         .filter((reply) => reply.text)
-        .forEach((reply) => trackTurn(sender, "bot", reply.text, { engine: "rasa" }));
+        .forEach((reply) => trackTurn(activeSender, "bot", reply.text, { engine: "rasa" }));
       setDemoMode(false);
+      if (intro) pendingIntroRef.current = null;
     } catch (err) {
       // Backend unreachable (e.g. the hosted Space is parked). Answer from
       // the in-browser demo engine so the page always works: same intents,
       // same response wording, same seeded students.
       trackTurn(
-        sender,
+        activeSender,
         "notice",
         `backend unreachable (${err?.message || err}) - answered by the demo engine`,
         { engine: "demo" }
@@ -230,12 +295,94 @@ export default function App() {
         ...result.texts.map((text) => ({ from: "bot", text, ts })),
       ]);
       result.texts.forEach((text) =>
-        trackTurn(sender, "bot", text, { engine: "demo" })
+        trackTurn(activeSender, "bot", text, { engine: "demo" })
       );
       setDemoMode(true);
+      // Remember the introduction so the next live send delivers it first.
+      if (intro) pendingIntroRef.current = { sender: activeSender, text: message };
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onLogin(e) {
+    e.preventDefault();
+    const username = loginName.trim();
+    const password = loginPassword.trim();
+    if (!username || !password || loginBusy) return;
+
+    setLoginBusy(true);
+    setLoginError("");
+
+    let account = null;
+    try {
+      const res = await fetch(AUTH_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (res.status === 400 || res.status === 401) {
+        setLoginError("Wrong username or password.");
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data?.ok || !data.first_name || !data.last_name) {
+        throw new Error("unexpected login response");
+      }
+      account = { first: data.first_name, last: data.last_name, via: "server" };
+    } catch (err) {
+      // Loyal to the chat's fallback: when the backend cannot be reached the
+      // same credential rule is checked in the browser (15 demo accounts),
+      // so the page still works while the Space is parked.
+      const offline = checkCredentials(username, password);
+      if (!offline) {
+        setLoginError(
+          "Wrong username or password. (The live server is unreachable, so this was checked against the offline demo accounts.)"
+        );
+        return;
+      }
+      account = { first: offline.first, last: offline.last, via: "offline" };
+      setDemoMode(true);
+      trackTurn(sender, "notice", `login checked offline (${err?.message || err})`, {
+        engine: "demo",
+      });
+    } finally {
+      setLoginBusy(false);
+    }
+
+    // Signed in: greet with a system line and introduce the student to the
+    // bot silently - from here on the dialogue is exactly the old flow, so
+    // the bot already knows who is asking.
+    sessionStorage.setItem(K_USER, JSON.stringify(account));
+    setUser(account);
+    setLoginName("");
+    setLoginPassword("");
+    setMessages([signedInMessage(account)]);
+    sendMessage(`My name is ${account.first} ${account.last}`, {
+      hidden: true,
+      intro: true,
+    });
+  }
+
+  function logout() {
+    setMenuOpen(false);
+    sessionStorage.removeItem(K_USER);
+    setUser(null);
+    setLoginError("");
+    setLoginName("");
+    setLoginPassword("");
+    setInput("");
+    setDemoMode(false);
+    demoStateRef.current.student = null;
+    pendingIntroRef.current = null;
+    // A fresh conversation: the next student must not inherit this one's
+    // dialogue state (Rasa keeps the student in the tracker's slots).
+    const id = newSenderId();
+    localStorage.setItem(K_SENDER, id);
+    setSender(id);
+    setMessages([]);
+    console.info(`[attendance-bot] signed out; new conversation ${id}`);
   }
 
   function onSubmit(e) {
@@ -249,10 +396,19 @@ export default function App() {
     const id = newSenderId();
     localStorage.setItem(K_SENDER, id);
     setSender(id);
-    setMessages([welcomeMessage()]);
     setInput("");
     demoStateRef.current.student = null;
     setDemoMode(false);
+    if (user) {
+      setMessages([signedInMessage(user)]);
+      sendMessage(`My name is ${user.first} ${user.last}`, {
+        hidden: true,
+        sender: id,
+        intro: true,
+      });
+    } else {
+      setMessages([]);
+    }
     console.info(`[attendance-bot] new conversation ${id}`);
   }
 
@@ -326,17 +482,37 @@ export default function App() {
                 ))}
               </div>
 
-              <hr />
+              {user && (
+                <>
+                  <hr />
 
-              <button
-                type="button"
-                className="menu-action"
-                onClick={newConversation}
-                disabled={busy}
-              >
-                <i className="fa-solid fa-rotate-right" aria-hidden="true" />
-                Start a new conversation
-              </button>
+                  <button
+                    type="button"
+                    className="menu-action"
+                    onClick={newConversation}
+                    disabled={busy}
+                  >
+                    <i className="fa-solid fa-rotate-right" aria-hidden="true" />
+                    Start a new conversation
+                  </button>
+
+                  <hr />
+
+                  <p className="menu-label">
+                    <i className="fa-solid fa-user" aria-hidden="true" />
+                    Signed in as {user.first} {user.last}
+                  </p>
+                  <button
+                    type="button"
+                    className="menu-action"
+                    onClick={logout}
+                    disabled={busy}
+                  >
+                    <i className="fa-solid fa-right-from-bracket" aria-hidden="true" />
+                    Log out
+                  </button>
+                </>
+              )}
 
               <hr />
 
@@ -375,7 +551,7 @@ export default function App() {
               key={q.label}
               type="button"
               className="nav-item"
-              disabled={busy}
+              disabled={busy || !user}
               onClick={() => sendMessage(q.message)}
             >
               <i className={`fa-solid ${q.icon}`} aria-hidden="true" />
@@ -387,7 +563,7 @@ export default function App() {
           <button
             type="button"
             className="nav-item"
-            disabled={busy}
+            disabled={busy || !user}
             onClick={newConversation}
           >
             <i className="fa-solid fa-rotate-right" aria-hidden="true" />
@@ -406,8 +582,9 @@ export default function App() {
             <h1 className="page-title">Ask the Attendance Bot</h1>
 
             <p className="lede">
-              Look up your lecture and practical sessions — campus, day, time,
-              subject and room — by telling the bot your first and last name.
+              Log in with your student username and password, then ask about
+              your lecture and practical sessions — campus, day, time, subject
+              and room.
             </p>
 
             <div className="badges">
@@ -425,7 +602,7 @@ export default function App() {
               </span>
               <span className="badge">
                 <i className="fa-solid fa-database" aria-hidden="true" />
-                SQLite
+                SQLite / Neon
               </span>
             </div>
 
@@ -441,62 +618,124 @@ export default function App() {
               </div>
             )}
 
-            <h2 className="section-title">Conversation</h2>
-
-            <div className="messages" aria-live="polite">
-              {messages.map((m, i) => (
-                <div key={i} className={`bubble ${m.from}`}>
-                  <RichText text={m.text} />
-                  <span className="time">{fmtTime(m.ts)}</span>
+            {!user ? (
+              <section className="login-card" aria-labelledby="login-title">
+                <div className="login-head">
+                  <span className="login-icon">
+                    <i className="fa-solid fa-lock" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h2 id="login-title">Student login</h2>
+                    <p>Sign in to check your lecture and practical sessions.</p>
+                  </div>
                 </div>
-              ))}
 
-              {busy && (
-                <div className="bubble bot typing" aria-label="The bot is typing">
-                  <span className="dot" />
-                  <span className="dot" />
-                  <span className="dot" />
-                </div>
-              )}
+                <form className="login-form" onSubmit={onLogin} autoComplete="off">
+                  <label>
+                    Username
+                    <input
+                      value={loginName}
+                      onChange={(e) => setLoginName(e.target.value)}
+                      placeholder="alicejohnson"
+                      autoComplete="username"
+                      autoFocus
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="johnsonalice"
+                      autoComplete="current-password"
+                    />
+                  </label>
 
-              {showQuickReplies && (
-                <div className="chips" role="group" aria-label="Suggested questions">
-                  {quickReplies.map((q) => (
-                    <button
-                      key={q}
-                      type="button"
-                      className="chip"
-                      onClick={() => sendMessage(q)}
-                    >
-                      {q}
-                    </button>
+                  {loginError && (
+                    <p className="login-error" role="alert">
+                      <i className="fa-solid fa-circle-exclamation" aria-hidden="true" />
+                      {loginError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="login-submit"
+                    disabled={loginBusy || !loginName.trim() || !loginPassword.trim()}
+                  >
+                    {loginBusy ? "Signing in…" : "Sign in"}
+                  </button>
+                </form>
+
+                <p className="login-hint">
+                  Username: first name + last name · password: last name + first
+                  name, run together — e.g. <code>alicejohnson</code> /{" "}
+                  <code>johnsonalice</code>. Case and spaces are ignored.
+                </p>
+              </section>
+            ) : (
+              <>
+                <h2 className="section-title">Conversation</h2>
+
+                <div className="messages" aria-live="polite">
+                  {messages.map((m, i) => (
+                    <div key={i} className={`bubble ${m.from}`}>
+                      <RichText text={m.text} />
+                      {m.from !== "system" && (
+                        <span className="time">{fmtTime(m.ts)}</span>
+                      )}
+                    </div>
                   ))}
+
+                  {busy && (
+                    <div className="bubble bot typing" aria-label="The bot is typing">
+                      <span className="dot" />
+                      <span className="dot" />
+                      <span className="dot" />
+                    </div>
+                  )}
+
+                  {showQuickReplies && (
+                    <div className="chips" role="group" aria-label="Suggested questions">
+                      {quickReplies.map((q) => (
+                        <button
+                          key={q}
+                          type="button"
+                          className="chip"
+                          onClick={() => sendMessage(q)}
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div ref={bottomRef} />
                 </div>
-              )}
 
-              <div ref={bottomRef} />
-            </div>
-
-            <form className="composer" onSubmit={onSubmit}>
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Message"
-                aria-label="Message"
-                autoFocus
-              />
-              <button
-                type="submit"
-                className="send-btn"
-                aria-label="Send"
-                disabled={busy || !input.trim()}
-              >
-                <i className="fa-solid fa-paper-plane" aria-hidden="true" />
-              </button>
-            </form>
+                <form className="composer" onSubmit={onSubmit}>
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Message"
+                    aria-label="Message"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="send-btn"
+                    aria-label="Send"
+                    disabled={busy || !input.trim()}
+                  >
+                    <i className="fa-solid fa-paper-plane" aria-hidden="true" />
+                  </button>
+                </form>
+              </>
+            )}
 
             <footer className="footer">
-              Built with Rasa Open Source · React 19 + Vite · SQLite
+              Built with Rasa Open Source · React 19 + Vite · SQLite / Neon Postgres
             </footer>
           </div>
         </main>
