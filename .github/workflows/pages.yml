@@ -2,10 +2,7 @@ name: Deploy the web chat to GitHub Pages
 
 on:
   push:
-    branches: [master]
-    paths:
-      - "web/**"
-      - ".github/workflows/pages.yml"
+    tags: ["*"]
   workflow_dispatch:
 
 permissions:
