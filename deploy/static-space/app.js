@@ -456,6 +456,10 @@ let recordChunks = [];
 let recordStream = null;
 let recordTimer = 0;
 let transcribing = false;
+let levelTimer = 0; // watches the mic level while recording
+let levelCtx = null; // analyser context for that watchdog
+let heardSpeech = false; // did any audible sound arrive?
+let micWarned = false; // "not hearing anything" hint shown?
 
 function showSpeechHint(message) {
   speechHint.textContent = message;
@@ -624,6 +628,44 @@ async function startWhisperRecording() {
     };
     recordStream = stream;
     speechBase = inputEl.value.trim();
+    // Watch the input level: tell the user while recording when the
+    // microphone delivers nothing (muted, off or the wrong device).
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const actx = new AudioCtx();
+    const analyser = actx.createAnalyser();
+    analyser.fftSize = 2048;
+    actx.createMediaStreamSource(stream).connect(analyser);
+    levelCtx = actx;
+    heardSpeech = false;
+    micWarned = false;
+    const levelBuf = new Float32Array(analyser.fftSize);
+    const levelStartedAt = Date.now();
+    clearInterval(levelTimer);
+    levelTimer = setInterval(() => {
+      analyser.getFloatTimeDomainData(levelBuf);
+      let peak = 0;
+      for (let i = 0; i < levelBuf.length; i += 1) {
+        peak = Math.max(peak, Math.abs(levelBuf[i]));
+      }
+      if (peak > 0.01) {
+        if (micWarned) {
+          // Sound arrived after all - take the warning back down.
+          micWarned = false;
+          clearTimeout(speechHintTimer);
+          speechHint.hidden = true;
+        }
+        heardSpeech = true;
+      } else if (
+        !heardSpeech &&
+        Date.now() - levelStartedAt > 1500 &&
+        !micWarned
+      ) {
+        micWarned = true;
+        showSpeechHint(
+          "I'm not hearing anything - check your microphone is on and unmuted."
+        );
+      }
+    }, 300);
     // Fetch and warm up the small speech model while the user speaks.
     loadWhisperModel((pct) =>
       showSpeechHint(
@@ -649,12 +691,25 @@ async function startWhisperRecording() {
 
 function stopWhisperRecording() {
   clearTimeout(recordTimer);
+  clearInterval(levelTimer);
+  closeLevelCtx();
   const rec = recorder;
   recorder = null;
   if (rec && rec.state !== "inactive") rec.stop(); // -> transcribeRecording
   micBtn.classList.remove("listening");
   micBtn.setAttribute("aria-pressed", "false");
   updateMicPlaceholder();
+}
+
+function closeLevelCtx() {
+  if (!levelCtx) return;
+  try {
+    const p = levelCtx.close();
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) {
+    /* already closed */
+  }
+  levelCtx = null;
 }
 
 async function transcribeRecording(blob) {
@@ -667,13 +722,38 @@ async function transcribeRecording(blob) {
   updateMicPlaceholder();
   showSpeechHint("Transcribing…");
   try {
-    const asr = await loadWhisperModel();
     const samples = await blobToWhisperAudio(blob);
+    // Recordings with no audible signal at all (muted or disconnected
+    // microphone) only make Whisper hallucinate - never guess on those.
+    let peak = 0;
+    for (let i = 0; i < samples.length; i += 1) {
+      peak = Math.max(peak, Math.abs(samples[i]));
+    }
+    console.info("[attendance-bot] voice recording level (peak):", peak.toFixed(4));
+    if (peak < 0.006) {
+      showSpeechHint(
+        "I didn't hear anything - check your microphone is on and unmuted."
+      );
+      return;
+    }
+    // Lift quiet recordings (low-gain microphones) before transcription.
+    if (peak < 0.5) {
+      const gain = Math.min(0.9 / peak, 20);
+      for (let i = 0; i < samples.length; i += 1) samples[i] *= gain;
+    }
+    const asr = await loadWhisperModel();
     const result = await asr(samples);
     const text = String((result && result.text) || "")
+      // Drop bracketed annotations ("[BLANK_AUDIO]", "[ Silence ]", ...):
+      // those are hallucinations produced for silent input.
+      .replace(/\[[^\]]{0,40}\]/g, " ")
+      .replace(/\((?:silence|blank audio|inaudible|no speech)\)/gi, " ")
       .replace(/\s+/g, " ")
       .trim();
-    if (!text) {
+    if (
+      !text ||
+      /^(you|thank you\.?|thanks for watching\.?|please subscribe\.?)$/i.test(text)
+    ) {
       showSpeechHint("I didn't hear anything - tap the mic and try again.");
       return;
     }
