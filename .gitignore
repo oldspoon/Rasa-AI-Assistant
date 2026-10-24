@@ -1,5 +1,6 @@
-# Local docs (readmes, manuals, transcripts) are never committed.
+# Local docs (manuals, transcripts) are never committed. The root README is the exception.
 *.md
+!README.md
 demo.txt
 
 # Archived git dirs of the pre-monorepo projects (local backup only).
