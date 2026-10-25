@@ -63,7 +63,7 @@
         <section class="hero">
           <h1>Ask for your <em>campus schedule</em>.</h1>
           <p class="hero-sub">
-            Introduce yourself with your first and last name — the bot looks you
+            Log in with your student username and password — the bot looks you
             up and answers about your <strong>lecture or practical days</strong>,
             <strong>campus</strong>, <strong>time</strong>,
             <strong>subject</strong> and <strong>room</strong>.
@@ -79,24 +79,67 @@
                 bot, replayed without a server</span
               >
             </div>
-            <button id="resetChat" type="button" class="ghost-btn">
+            <button id="resetChat" type="button" class="ghost-btn" hidden>
               New conversation
+            </button>
+            <button id="logoutBtn" type="button" class="ghost-btn" hidden>
+              Log out
             </button>
           </div>
 
-          <div id="messages" class="messages" aria-live="polite"></div>
+          <div id="loginView" class="login">
+            <div class="login-head">
+              <span class="login-emoji" aria-hidden="true">🔐</span>
+              <div>
+                <strong>Student login</strong>
+                <p class="muted">
+                  Sign in to try the schedule lookup — the same credentials the
+                  live bot checks.
+                </p>
+              </div>
+            </div>
 
-          <div id="quick" class="quick" aria-label="Quick replies"></div>
+            <form id="loginForm" class="login-form" autocomplete="off">
+              <label
+                >Username<input
+                  id="loginUser"
+                  type="text"
+                  placeholder="alicejohnson"
+                /></label>
+              <label
+                >Password<input
+                  id="loginPass"
+                  type="password"
+                  placeholder="johnsonalice"
+                /></label>
+              <p id="loginError" class="login-error" role="alert" hidden></p>
+              <button type="submit" class="login-submit">Sign in</button>
+            </form>
 
-          <form id="chatForm" class="composer" autocomplete="off">
-            <input
-              id="chatInput"
-              type="text"
-              placeholder='Try "My name is Alice Johnson" or "What room am I in?"'
-              aria-label="Message"
-            />
-            <button id="sendBtn" type="submit" class="send-btn">Send</button>
-          </form>
+            <p class="login-hint">
+              Username: first name + last name · password: last name + first
+              name, run together — e.g. <code>alicejohnson</code> /
+              <code>johnsonalice</code>. Case and spaces are ignored. Checked
+              in your browser against the same 15 seeded students; the live
+              deployment validates against its database.
+            </p>
+          </div>
+
+          <div id="chatView" hidden>
+            <div id="messages" class="messages" aria-live="polite"></div>
+
+            <div id="quick" class="quick" aria-label="Quick replies"></div>
+
+            <form id="chatForm" class="composer" autocomplete="off">
+              <input
+                id="chatInput"
+                type="text"
+                placeholder='Try "What days do I have lectures?" or "What room am I in?"'
+                aria-label="Message"
+              />
+              <button id="sendBtn" type="submit" class="send-btn">Send</button>
+            </form>
+          </div>
         </section>
 
         <section class="how">
