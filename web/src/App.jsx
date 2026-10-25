@@ -287,6 +287,10 @@ export default function App() {
   const recordChunksRef = useRef([]);
   const recordStreamRef = useRef(null);
   const recordTimerRef = useRef(null);
+  const levelTimerRef = useRef(null); // watches the mic level while recording
+  const audioCtxRef = useRef(null); // analyser context for that watchdog
+  const heardRef = useRef(false); // did any audible sound arrive?
+  const micWarnedRef = useRef(false); // "not hearing anything" hint shown?
 
   const quickReplies = BASE_REPLIES;
   const showQuickReplies =
@@ -406,6 +410,44 @@ export default function App() {
       };
       recordStreamRef.current = stream;
       speechBaseRef.current = input.trim();
+      // Watch the input level: tell the user while recording when the
+      // microphone delivers nothing (muted, off or the wrong device).
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const actx = new AudioCtx();
+      const analyser = actx.createAnalyser();
+      analyser.fftSize = 2048;
+      actx.createMediaStreamSource(stream).connect(analyser);
+      audioCtxRef.current = actx;
+      heardRef.current = false;
+      micWarnedRef.current = false;
+      const levelBuf = new Float32Array(analyser.fftSize);
+      const levelStartedAt = Date.now();
+      clearInterval(levelTimerRef.current);
+      levelTimerRef.current = setInterval(() => {
+        analyser.getFloatTimeDomainData(levelBuf);
+        let peak = 0;
+        for (let i = 0; i < levelBuf.length; i += 1) {
+          peak = Math.max(peak, Math.abs(levelBuf[i]));
+        }
+        if (peak > 0.01) {
+          if (micWarnedRef.current) {
+            // Sound arrived after all - take the warning back down.
+            micWarnedRef.current = false;
+            clearTimeout(speechHintTimerRef.current);
+            setSpeechHint("");
+          }
+          heardRef.current = true;
+        } else if (
+          !heardRef.current &&
+          Date.now() - levelStartedAt > 1500 &&
+          !micWarnedRef.current
+        ) {
+          micWarnedRef.current = true;
+          showSpeechHint(
+            "I'm not hearing anything - check your microphone is on and unmuted."
+          );
+        }
+      }, 300);
       // Fetch and warm up the small speech model while the user speaks.
       loadWhisperModel((pct) =>
         showSpeechHint(
@@ -429,10 +471,23 @@ export default function App() {
 
   function stopWhisperRecording() {
     clearTimeout(recordTimerRef.current);
+    clearInterval(levelTimerRef.current);
+    closeLevelCtx();
     const rec = recorderRef.current;
     recorderRef.current = null;
     if (rec && rec.state !== "inactive") rec.stop(); // -> transcribeRecording
     setListening(false);
+  }
+
+  function closeLevelCtx() {
+    if (!audioCtxRef.current) return;
+    try {
+      const p = audioCtxRef.current.close();
+      if (p && p.catch) p.catch(() => {});
+    } catch {
+      /* already closed */
+    }
+    audioCtxRef.current = null;
   }
 
   async function transcribeRecording(blob) {
@@ -443,13 +498,38 @@ export default function App() {
     setTranscribing(true);
     showSpeechHint("Transcribing…");
     try {
-      const asr = await loadWhisperModel();
       const samples = await blobToWhisperAudio(blob);
+      // Recordings with no audible signal at all (muted or disconnected
+      // microphone) only make Whisper hallucinate - never guess on those.
+      let peak = 0;
+      for (let i = 0; i < samples.length; i += 1) {
+        peak = Math.max(peak, Math.abs(samples[i]));
+      }
+      console.info("[attendance-bot] voice recording level (peak):", peak.toFixed(4));
+      if (peak < 0.006) {
+        showSpeechHint(
+          "I didn't hear anything - check your microphone is on and unmuted."
+        );
+        return;
+      }
+      // Lift quiet recordings (low-gain microphones) before transcription.
+      if (peak < 0.5) {
+        const gain = Math.min(0.9 / peak, 20);
+        for (let i = 0; i < samples.length; i += 1) samples[i] *= gain;
+      }
+      const asr = await loadWhisperModel();
       const result = await asr(samples);
       const text = String(result?.text ?? "")
+        // Drop bracketed annotations ("[BLANK_AUDIO]", "[ Silence ]", ...):
+        // those are hallucinations produced for silent input.
+        .replace(/\[[^\]]{0,40}\]/g, " ")
+        .replace(/\((?:silence|blank audio|inaudible|no speech)\)/gi, " ")
         .replace(/\s+/g, " ")
         .trim();
-      if (!text) {
+      if (
+        !text ||
+        /^(you|thank you\.?|thanks for watching\.?|please subscribe\.?)$/i.test(text)
+      ) {
         showSpeechHint("I didn't hear anything - tap the mic and try again.");
         return;
       }
@@ -551,6 +631,8 @@ export default function App() {
       recognitionRef.current = null;
       clearTimeout(watchdogRef.current);
       clearTimeout(speechHintTimerRef.current);
+      clearInterval(levelTimerRef.current);
+      closeLevelCtx();
     };
   }, []);
 
