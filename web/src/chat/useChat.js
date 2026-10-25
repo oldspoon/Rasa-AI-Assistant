@@ -5,8 +5,26 @@ import { getSender, newSenderId, readStoredUser, saveSender } from "../storage/s
 import { trackTurn } from "../storage/transcriptLog.js";
 import { signedInMessage } from "./messages.js";
 
+class SessionExpired extends Error {}
+
+// POST one chat message with the login token. A rejected token means the login is no longer valid.
+async function postChat(sender, message) {
+  const token = readStoredUser()?.token;
+  const res = await fetch(WEBHOOK, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ sender, message }),
+  });
+  if (res.status === 401 && token) throw new SessionExpired();
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res;
+}
+
 // Chat state and the send path: live backend first, in-browser demo engine as fallback.
-export function useChat({ user, busy, setBusy, stopDictation, closeMenu }) {
+export function useChat({ user, busy, setBusy, stopDictation, closeMenu, onSessionExpired }) {
   const [sender, setSender] = useState(() => getSender());
   const [messages, setMessages] = useState(() => {
     const saved = readStoredUser();
@@ -38,23 +56,13 @@ export function useChat({ user, busy, setBusy, stopDictation, closeMenu }) {
       // Deliver a sign-in introduction that never reached the backend.
       const pending = pendingIntroRef.current;
       if (!intro && pending && pending.sender === activeSender) {
-        const catchUp = await fetch(WEBHOOK, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sender: activeSender, message: pending.text }),
-        });
-        if (!catchUp.ok) throw new Error(`HTTP ${catchUp.status}`);
+        await postChat(activeSender, pending.text);
         pendingIntroRef.current = null;
         trackTurn(activeSender, "notice", "introduction re-sent to the live backend", {
           engine: "rasa",
         });
       }
-      const res = await fetch(WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sender: activeSender, message }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await postChat(activeSender, message);
       const replies = await res.json(); // [{ recipient_id, text }, ...]
       const ts = Date.now();
       setMessages((msgs) => [
@@ -67,6 +75,10 @@ export function useChat({ user, busy, setBusy, stopDictation, closeMenu }) {
       setDemoMode(false);
       if (intro) pendingIntroRef.current = null;
     } catch (err) {
+      if (err instanceof SessionExpired) {
+        onSessionExpired?.();
+        return;
+      }
       // Backend unreachable: answer from the in-browser demo engine.
       trackTurn(
         activeSender,

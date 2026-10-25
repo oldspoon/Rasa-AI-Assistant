@@ -22,14 +22,17 @@ export default function App() {
 
   const closeMenu = () => setMenuOpen(false);
   const voice = useVoiceInput({ input, setInput, busy });
+  const expireRef = useRef(() => {});
   const chat = useChat({
     user,
     busy,
     setBusy,
     stopDictation: voice.stopListening,
     closeMenu,
+    onSessionExpired: () => expireRef.current(),
   });
   const auth = useAuth({ setUser, setInput, chat, voice, closeMenu });
+  expireRef.current = auth.expireSession;
 
   const lastMessage = chat.messages[chat.messages.length - 1];
   const showQuickReplies =

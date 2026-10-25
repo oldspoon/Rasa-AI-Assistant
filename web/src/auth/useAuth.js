@@ -23,7 +23,12 @@ export function useAuth({ setUser, setInput, chat, voice, closeMenu }) {
     if (!data?.ok || !data.first_name || !data.last_name) {
       throw new Error("unexpected login response");
     }
-    return { first: data.first_name, last: data.last_name, via: "server" };
+    return {
+      first: data.first_name,
+      last: data.last_name,
+      token: data.token,
+      via: "server",
+    };
   }
 
   async function onLogin(e) {
@@ -64,6 +69,12 @@ export function useAuth({ setUser, setInput, chat, voice, closeMenu }) {
     chat.beginSession(account);
   }
 
+  // The server no longer accepts the login token: back to the sign-in form.
+  function expireSession() {
+    logout();
+    setLoginError("Your session has expired. Please sign in again.");
+  }
+
   function logout() {
     closeMenu();
     voice.stopListening();
@@ -86,5 +97,6 @@ export function useAuth({ setUser, setInput, chat, voice, closeMenu }) {
     loginBusy,
     onLogin,
     logout,
+    expireSession,
   };
 }
