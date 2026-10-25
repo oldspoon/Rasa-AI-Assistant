@@ -105,7 +105,35 @@ function showTyping() {
   return div;
 }
 
-function renderQuickReplies() {
+// Icon drawn on the left of a reply button, by payload (Feather icons, MIT).
+const REPLY_ICONS = {
+  "/pay_by_phone":
+    '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>',
+  "/pay_at_infodesk": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+};
+
+function replyButton({ title, payload }) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "quick-chip reply-option";
+  if (REPLY_ICONS[payload]) {
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = REPLY_ICONS[payload];
+    b.appendChild(icon);
+  }
+  b.appendChild(document.createTextNode(title));
+  b.addEventListener("click", () => send(payload, title));
+  return b;
+}
+
+// Buttons from the bot replace the suggestions until the student picks one.
+function renderQuickReplies(buttons) {
+  if (buttons && buttons.length) {
+    quickEl.replaceChildren(...buttons.map(replyButton));
+    return;
+  }
   const chips = student
     ? [
         "What days do I have lectures?",
@@ -140,7 +168,7 @@ function setBusy(value) {
   logoutBtn.disabled = value;
 }
 
-function botRespond(texts) {
+function botRespond(texts, buttons) {
   const typing = showTyping();
   const baseDelay = 400 + Math.random() * 300;
 
@@ -151,7 +179,7 @@ function botRespond(texts) {
       setTimeout(() => push(index + 1), 350);
     } else {
       setBusy(false);
-      renderQuickReplies();
+      renderQuickReplies(buttons);
       inputEl.focus();
     }
   };
@@ -159,18 +187,18 @@ function botRespond(texts) {
   setTimeout(() => push(0), baseDelay);
 }
 
-function send(text) {
+function send(text, label) {
   const clean = (text || "").trim();
   if (!clean || busy) return;
 
   stopListening(); // sending ends dictation
-  appendMessage("user", clean);
+  appendMessage("user", label || clean);
   inputEl.value = "";
   setBusy(true);
 
   const result = reply(clean, student);
   student = result.student;
-  botRespond(result.texts);
+  botRespond(result.texts, result.buttons);
 }
 
 function appendSystem(text) {
