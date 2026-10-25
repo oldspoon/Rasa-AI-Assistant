@@ -1,23 +1,53 @@
 /* Offline replay of the bot's dialogue, used when the hosted backend is unreachable.
    Mirrors deploy/static-space/app.js. */
-/* Students (matches the database). */
+/* Students, each with a weekly lecture and practical (matches the database). */
 
 export const STUDENTS = [
-  { first: "Alice", middle: "Marie", last: "Johnson", campus: "Craiglockhart", type: "Lecture", day: "Monday", time: "10:00-12:00", subject: "Fine Arts", room: "F14" },
-  { first: "Bob", middle: "James", last: "Smith", campus: "Sighthill", type: "Practical", day: "Tuesday", time: "11:00-13:00", subject: "Computing", room: "A94" },
-  { first: "Carol", middle: "Anne", last: "Williams", campus: "Merchiston", type: "Lecture", day: "Wednesday", time: "12:00-14:00", subject: "Biology", room: "C31" },
-  { first: "David", middle: "Lee", last: "Brown", campus: "Craiglockhart", type: "Practical", day: "Thursday", time: "13:00-15:00", subject: "Fine Arts", room: "B17" },
-  { first: "Emma", middle: "Grace", last: "Jones", campus: "Sighthill", type: "Lecture", day: "Friday", time: "14:00-16:00", subject: "Computing", room: "F13" },
-  { first: "Frank", middle: "Thomas", last: "Garcia", campus: "Merchiston", type: "Practical", day: "Monday", time: "15:00-17:00", subject: "Biology", room: "F94" },
-  { first: "Grace", middle: "Louise", last: "Miller", campus: "Craiglockhart", type: "Lecture", day: "Tuesday", time: "10:00-12:00", subject: "Fine Arts", room: "E11" },
-  { first: "Henry", middle: "Charles", last: "Davis", campus: "Sighthill", type: "Practical", day: "Wednesday", time: "11:00-13:00", subject: "Computing", room: "E54" },
-  { first: "Isabella", middle: "Rose", last: "Wilson", campus: "Merchiston", type: "Lecture", day: "Thursday", time: "12:00-14:00", subject: "Biology", room: "A03" },
-  { first: "Jack", middle: "Edward", last: "Moore", campus: "Craiglockhart", type: "Practical", day: "Friday", time: "13:00-15:00", subject: "Fine Arts", room: "A27" },
-  { first: "Katie", middle: "Lynn", last: "Taylor", campus: "Sighthill", type: "Lecture", day: "Monday", time: "14:00-16:00", subject: "Computing", room: "B64" },
-  { first: "Liam", middle: "Patrick", last: "Anderson", campus: "Merchiston", type: "Practical", day: "Tuesday", time: "15:00-17:00", subject: "Biology", room: "E03" },
-  { first: "Mia", middle: "Claire", last: "Thomas", campus: "Craiglockhart", type: "Lecture", day: "Wednesday", time: "10:00-12:00", subject: "Fine Arts", room: "E25" },
-  { first: "Noah", middle: "William", last: "Jackson", campus: "Sighthill", type: "Practical", day: "Thursday", time: "11:00-13:00", subject: "Computing", room: "F83" },
-  { first: "Olivia", middle: "Faith", last: "White", campus: "Merchiston", type: "Lecture", day: "Friday", time: "12:00-14:00", subject: "Biology", room: "F69" },
+  { first: "Alice", middle: "Marie", last: "Johnson", campus: "Craiglockhart", subject: "Fine Arts",
+    lecture: { day: "Monday", time: "10:00-12:00", room: "F14" },
+    practical: { day: "Wednesday", time: "13:00-15:00", room: "D28" } },
+  { first: "Bob", middle: "James", last: "Smith", campus: "Sighthill", subject: "Computing",
+    lecture: { day: "Thursday", time: "14:00-16:00", room: "D75" },
+    practical: { day: "Tuesday", time: "11:00-13:00", room: "A94" } },
+  { first: "Carol", middle: "Anne", last: "Williams", campus: "Merchiston", subject: "Biology",
+    lecture: { day: "Wednesday", time: "12:00-14:00", room: "C31" },
+    practical: { day: "Friday", time: "15:00-17:00", room: "C00" } },
+  { first: "David", middle: "Lee", last: "Brown", campus: "Craiglockhart", subject: "Fine Arts",
+    lecture: { day: "Monday", time: "10:00-12:00", room: "B89" },
+    practical: { day: "Thursday", time: "13:00-15:00", room: "B17" } },
+  { first: "Emma", middle: "Grace", last: "Jones", campus: "Sighthill", subject: "Computing",
+    lecture: { day: "Friday", time: "14:00-16:00", room: "F13" },
+    practical: { day: "Tuesday", time: "11:00-13:00", room: "D43" } },
+  { first: "Frank", middle: "Thomas", last: "Garcia", campus: "Merchiston", subject: "Biology",
+    lecture: { day: "Wednesday", time: "12:00-14:00", room: "C19" },
+    practical: { day: "Monday", time: "15:00-17:00", room: "F94" } },
+  { first: "Grace", middle: "Louise", last: "Miller", campus: "Craiglockhart", subject: "Fine Arts",
+    lecture: { day: "Tuesday", time: "10:00-12:00", room: "E11" },
+    practical: { day: "Thursday", time: "13:00-15:00", room: "B97" } },
+  { first: "Henry", middle: "Charles", last: "Davis", campus: "Sighthill", subject: "Computing",
+    lecture: { day: "Friday", time: "14:00-16:00", room: "C13" },
+    practical: { day: "Wednesday", time: "11:00-13:00", room: "E54" } },
+  { first: "Isabella", middle: "Rose", last: "Wilson", campus: "Merchiston", subject: "Biology",
+    lecture: { day: "Thursday", time: "12:00-14:00", room: "A03" },
+    practical: { day: "Monday", time: "15:00-17:00", room: "A48" } },
+  { first: "Jack", middle: "Edward", last: "Moore", campus: "Craiglockhart", subject: "Fine Arts",
+    lecture: { day: "Tuesday", time: "10:00-12:00", room: "A45" },
+    practical: { day: "Friday", time: "13:00-15:00", room: "A27" } },
+  { first: "Katie", middle: "Lynn", last: "Taylor", campus: "Sighthill", subject: "Computing",
+    lecture: { day: "Monday", time: "14:00-16:00", room: "B64" },
+    practical: { day: "Wednesday", time: "11:00-13:00", room: "C77" } },
+  { first: "Liam", middle: "Patrick", last: "Anderson", campus: "Merchiston", subject: "Biology",
+    lecture: { day: "Thursday", time: "12:00-14:00", room: "C05" },
+    practical: { day: "Tuesday", time: "15:00-17:00", room: "E03" } },
+  { first: "Mia", middle: "Claire", last: "Thomas", campus: "Craiglockhart", subject: "Fine Arts",
+    lecture: { day: "Wednesday", time: "10:00-12:00", room: "E25" },
+    practical: { day: "Friday", time: "13:00-15:00", room: "F58" } },
+  { first: "Noah", middle: "William", last: "Jackson", campus: "Sighthill", subject: "Computing",
+    lecture: { day: "Monday", time: "14:00-16:00", room: "E15" },
+    practical: { day: "Thursday", time: "11:00-13:00", room: "F83" } },
+  { first: "Olivia", middle: "Faith", last: "White", campus: "Merchiston", subject: "Biology",
+    lecture: { day: "Friday", time: "12:00-14:00", room: "F69" },
+    practical: { day: "Tuesday", time: "15:00-17:00", room: "D10" } },
 ];
 
 /* Unpaid parking charges: [first, last, licence plate, issued, fine in pence].
@@ -116,24 +146,25 @@ export const SAY = {
   notFound: (f, l) =>
     `I'm sorry, I couldn't find a student with the name ${f} ${l} in our attendance records. Please check your name and try again.`,
   lectureDays: (s) =>
-    `Hi ${s.first}! You have a **Lecture** session on **${s.day}**. Would you like to know more details such as your campus, time, subject, or room?`,
-  lectureDaysButPractical: (s) =>
-    `Hi ${s.first}! You do not have any lecture sessions registered - your session on **${s.day}** is a **Practical** session. Ask me about your practical days if you'd like.`,
+    `Hi ${s.first}! You have a **Lecture** session on **${s.lecture.day}**. Would you like to know more details such as your campus, time, subject, or room?`,
   practicalDays: (s) =>
-    `Hi ${s.first}! You have a **Practical** session on **${s.day}**. Would you like to know more details such as your campus, time, subject, or room?`,
-  practicalDaysButLecture: (s) =>
-    `Hi ${s.first}! You do not have any practical sessions registered - your session on **${s.day}** is a **Lecture** session. Ask me about your lecture days if you'd like.`,
+    `Hi ${s.first}! You have a **Practical** session on **${s.practical.day}**. Would you like to know more details such as your campus, time, subject, or room?`,
   campus: (s) =>
-    `${s.first}, your session on **${s.day}** takes place at the **${s.campus}** campus.`,
+    `${s.first}, your lecture and practical both take place at the **${s.campus}** campus.`,
   time: (s) =>
-    `${s.first}, your **${s.type}** session on **${s.day}** runs from **${s.time}**.`,
-  subject: (s) =>
-    `${s.first}, your subject on **${s.day}** is **${s.subject}**.`,
+    `${s.first}, your **Lecture** on **${s.lecture.day}** runs from **${s.lecture.time}** and your **Practical** on **${s.practical.day}** runs from **${s.practical.time}**.`,
+  subject: (s) => `${s.first}, your subject is **${s.subject}**.`,
   room: (s) =>
-    `${s.first}, your session is in room **${s.room}** at the **${s.campus}** campus.`,
+    `${s.first}, your **Lecture** is in room **${s.lecture.room}** and your **Practical** is in room **${s.practical.room}**, both at the **${s.campus}** campus.`,
   fullSchedule: (s) => [
-    `Here is the full schedule for **${s.first} ${s.last}**:`,
-    `**Day:**           ${s.day}\n**Campus:**        ${s.campus}\n**Session type:**  ${s.type}\n**Time:**          ${s.time}\n**Subject:**       ${s.subject}\n**Room:**          ${s.room}`,
+    `Here is the weekly schedule for **${s.first} ${s.last}**:`,
+    `**Campus:** ${s.campus}\n**Subject:** ${s.subject}\n\n` +
+      ["lecture", "practical"]
+        .map(
+          (k) =>
+            `**${titleCase(k)}**\n**Day:** ${s[k].day}\n**Time:** ${s[k].time}\n**Room:** ${s[k].room}`
+        )
+        .join("\n\n"),
     "Is there anything else you'd like to know?",
   ],
   guard:
@@ -268,18 +299,10 @@ export function reply(text, student) {
       return { texts: SAY.fullSchedule(student), student };
     }
     if (RE.lecture.test(t) && (RE.lectureDayish.test(t) || !RE.practical.test(t))) {
-      const text2 =
-        student.type === "Lecture"
-          ? SAY.lectureDays(student)
-          : SAY.lectureDaysButPractical(student);
-      return { texts: [text2], student };
+      return { texts: [SAY.lectureDays(student)], student };
     }
     if (RE.practical.test(t) && (RE.lectureDayish.test(t) || !RE.lecture.test(t))) {
-      const text2 =
-        student.type === "Practical"
-          ? SAY.practicalDays(student)
-          : SAY.practicalDaysButLecture(student);
-      return { texts: [text2], student };
+      return { texts: [SAY.practicalDays(student)], student };
     }
     if (RE.campus.test(t)) return { texts: [SAY.campus(student)], student };
     if (RE.time.test(t)) return { texts: [SAY.time(student)], student };

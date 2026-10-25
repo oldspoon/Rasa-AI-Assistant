@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkCredentials, reply } from "./demoEngine.js";
+import { STUDENTS, checkCredentials, reply } from "./demoEngine.js";
 
 const alice = () => reply("My name is Alice Johnson", null).student;
 const bob = () => reply("My name is Bob Smith", null).student;
@@ -23,29 +23,36 @@ describe("schedule questions", () => {
     expect(reply("What days do I have lectures?", null).texts[0]).toMatch(/introduce yourself/);
   });
 
-  it("answers the lecture day for a lecture student", () => {
-    const text = reply("What days do I have lectures?", alice()).texts[0];
-    expect(text).toMatch(/Lecture\*\* session on \*\*Monday/);
+  it("answers the lecture and practical days for every student", () => {
+    expect(reply("What days do I have lectures?", alice()).texts[0]).toMatch(/Lecture\*\* session on \*\*Monday/);
+    expect(reply("What days do I have practicals?", alice()).texts[0]).toMatch(/Practical\*\* session on \*\*Wednesday/);
+    expect(reply("What days do I have lectures?", bob()).texts[0]).toMatch(/Lecture\*\* session on \*\*Thursday/);
+    expect(reply("What days do I have practicals?", bob()).texts[0]).toMatch(/Practical\*\* session on \*\*Tuesday/);
   });
 
-  it("says a practical student has no lectures", () => {
-    const text = reply("What days do I have lectures?", bob()).texts[0];
-    expect(text).toMatch(/do not have any lecture sessions/);
-    expect(text).toMatch(/\*\*Tuesday\*\*/);
-  });
-
-  it("answers campus, time, subject and room", () => {
+  it("answers campus, time, subject and room for both sessions", () => {
     const student = alice();
     expect(reply("Which campus is my class at?", student).texts[0]).toMatch(/Craiglockhart/);
-    expect(reply("What time is my session?", student).texts[0]).toMatch(/10:00-12:00/);
+    const time = reply("What time is my session?", student).texts[0];
+    expect(time).toMatch(/10:00-12:00/);
+    expect(time).toMatch(/13:00-15:00/);
     expect(reply("What subject am I studying?", student).texts[0]).toMatch(/Fine Arts/);
-    expect(reply("Which room is it?", student).texts[0]).toMatch(/F14/);
+    const room = reply("Which room is it?", student).texts[0];
+    expect(room).toMatch(/F14/);
+    expect(room).toMatch(/D28/);
   });
 
-  it("returns the full schedule as three messages", () => {
+  it("returns the weekly schedule as three messages, lecture before practical", () => {
     const texts = reply("Give me all my schedule details.", alice()).texts;
     expect(texts).toHaveLength(3);
     expect(texts[0]).toMatch(/Alice Johnson/);
+    expect(texts[1].indexOf("Lecture")).toBeLessThan(texts[1].indexOf("Practical"));
+  });
+
+  it("gives every student a lecture and a practical on different days", () => {
+    for (const s of STUDENTS) {
+      expect(s.lecture.day).not.toBe(s.practical.day);
+    }
   });
 });
 
