@@ -43,6 +43,32 @@ class TestTokens:
         assert auth_channel.verify_token(junk) is None
 
 
+class TestSignOff:
+    def test_a_signed_off_token_stops_working(self):
+        token = auth_channel.issue_token("alicejohnson", ALICE)
+        assert auth_channel.revoke_token(token) is True
+        assert auth_channel.verify_token(token) is None
+
+    def test_signing_off_one_login_leaves_the_others(self):
+        alice = auth_channel.issue_token("alicejohnson", ALICE)
+        bob = auth_channel.issue_token("bobsmith", BOB)
+        auth_channel.revoke_token(alice)
+        assert auth_channel.verify_token(bob) is not None
+
+    def test_a_forged_or_repeated_sign_off_is_refused(self):
+        assert auth_channel.revoke_token("forged.token") is False
+        token = auth_channel.issue_token("alicejohnson", ALICE)
+        auth_channel.revoke_token(token)
+        assert auth_channel.revoke_token(token) is False
+
+    def test_a_signed_off_token_is_refused_by_the_webhook(self, monkeypatch):
+        monkeypatch.delenv("RASA_ALLOW_ANONYMOUS", raising=False)
+        token = auth_channel.issue_token("alicejohnson", ALICE)
+        auth_channel.revoke_token(token)
+        with pytest.raises(SanicException):
+            extract(request(token))
+
+
 class TestConversationIds:
     def test_the_login_is_the_prefix(self):
         assert auth_channel.conversation_id("Alice Johnson", "abc") == "alicejohnson:abc"

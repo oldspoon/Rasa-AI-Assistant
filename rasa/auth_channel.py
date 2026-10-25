@@ -4,7 +4,7 @@ and the chat webhook that only accepts that login.
 
 Credentials are checked against the users table. Matching ignores case and spaces.
 Responses: 200 ok (with a signed token), 400 missing fields, 401 bad credentials,
-503 database down. Passwords are never logged.
+503 database down. Passwords are never logged. POST /auth/logout revokes the token.
 
 The chat webhook needs the token (Authorization: Bearer). The student comes from
 the token, never from the message, and every conversation id is prefixed with the
@@ -39,6 +39,8 @@ logger = logging.getLogger(__name__)
 
 TOKEN_TTL_SECONDS = 12 * 60 * 60
 _generated_secret: Optional[bytes] = None
+# Signed-off tokens (signature -> expiry). Forgotten on restart; a token then lasts to its expiry.
+_revoked: Dict[str, int] = {}
 
 _LOGIN_SQL = """
     SELECT first_name, last_name
@@ -113,6 +115,7 @@ def issue_token(username: Text, student: Dict[Text, Text], now: Optional[float] 
         "f": student["first_name"],
         "l": student["last_name"],
         "exp": int((time.time() if now is None else now) + TOKEN_TTL_SECONDS),
+        "n": secrets.token_hex(8),  # one token per login, so signing one off leaves the others
     }
     body = _b64(json.dumps(payload, separators=(",", ":")).encode())
     return f"{body}.{_sign(body)}"
@@ -122,7 +125,7 @@ def verify_token(token: Any, now: Optional[float] = None) -> Optional[Dict[Text,
     """The token's payload, or None if it is forged, malformed or expired."""
     try:
         body, signature = str(token).split(".")
-        if not hmac.compare_digest(signature, _sign(body)):
+        if not hmac.compare_digest(signature, _sign(body)) or signature in _revoked:
             return None
         payload = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
         if payload["exp"] < (time.time() if now is None else now):
@@ -130,6 +133,18 @@ def verify_token(token: Any, now: Optional[float] = None) -> Optional[Dict[Text,
         return payload if payload["u"] and payload["f"] and payload["l"] else None
     except Exception:
         return None
+
+
+def revoke_token(token: Any, now: Optional[float] = None) -> bool:
+    """Sign a token off for good. False if it was not a valid token."""
+    payload = verify_token(token, now)
+    if payload is None:
+        return False
+    current = time.time() if now is None else now
+    for signature in [s for s, exp in _revoked.items() if exp < current]:
+        del _revoked[signature]
+    _revoked[str(token).split(".")[1]] = payload["exp"]
+    return True
 
 
 def bearer_token(request: Request) -> Text:
@@ -232,5 +247,11 @@ class LoginAuthChannel(InputChannel):
             return response.json(
                 {"ok": True, **student, "token": issue_token(username, student)}
             )
+
+        @login_blueprint.route("/logout", methods=["POST"])
+        async def logout(request: Request) -> HTTPResponse:
+            signed_off = revoke_token(bearer_token(request))
+            logger.info("logout result=%s", "ok" if signed_off else "no valid token")
+            return response.json({"ok": signed_off}, status=200 if signed_off else 401)
 
         return login_blueprint

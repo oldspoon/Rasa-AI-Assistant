@@ -60,3 +60,11 @@ def test_a_forged_token_cannot_chat() -> None:
     )
     assert probe.status_code == 401 and forged.status_code == 401
 
+
+def test_signing_off_ends_the_login() -> None:
+    token = sign_in("alicejohnson", "johnsonalice")["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    off = requests.post(f"{RASA}/auth/logout", headers=headers, timeout=15)
+    assert off.status_code == 200 and off.json() == {"ok": True}
+    again = requests.post(f"{RASA}/auth/logout", headers=headers, timeout=15)
+    assert again.status_code == 401
