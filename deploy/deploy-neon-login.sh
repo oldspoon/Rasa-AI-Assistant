@@ -1,37 +1,15 @@
 #!/usr/bin/env bash
-# =============================================================================
-# deploy-neon-login.sh - deploy the student login endpoint as a Neon Function.
-#
-# The web chat and the demo page validate logins against neon/functions/login/
-# - the same request/response contract as Rasa's /auth/login channel
-# (rasa/auth_channel.py), served by a Neon Function next to the `users` table,
-# so sign-in works even while the Rasa backend is asleep.
-#
-# Ships the most recent release tag by default; override with REF:
-#   REF=1.0.1  ./deploy/deploy-neon-login.sh
-#   REF=master ./deploy/deploy-neon-login.sh     # branch tip (pre-release checks)
-#
-# Usage (from anywhere in the repo, Git Bash on Windows):
-#   ./deploy/deploy-neon-login.sh
-#
-# Requires the neon CLI, signed in and linked to the project (.neon), and a
-# seeded `users` table in Neon. One-time (or after changing the cohort):
-#   set DATABASE_URL to the .env.local value, then
-#   (cd action_server && python database/populate_db.py --users-only)
-#
-# Re-run this script whenever the login function changes. It exports the
-# function from the chosen ref, deploys it to the linked branch and smoke-tests
-# the live URL. When the invocation URL ever changes, update it in
-# .github/workflows/pages.yml (VITE_AUTH_URL) and deploy/static-space/app.js
-# (AUTH_URL).
-# =============================================================================
+# deploy-neon-login.sh: deploy the login endpoint as a Neon Function.
+# Usage: ./deploy/deploy-neon-login.sh   (REF=<tag|main> to pick the ref)
+# Same contract as rasa/auth_channel.py, so sign-in works while Rasa is asleep.
+# Needs the neon CLI, linked to the project, and a seeded users table.
+# Also update the URL in pages.yml and static-space/app.js if it changes.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# What to ship: the REF environment variable wins, then the first argument,
-# then the latest release tag, then the branch tip.
+# REF env var, then 1st argument, then latest tag, then branch tip.
 REF="${REF:-${1:-}}"
 if [ -z "$REF" ]; then
   REF="$(git describe --tags --abbrev=0 2>/dev/null || true)"
@@ -46,7 +24,7 @@ EXPORT="$(mktemp -d)"
 BODY="$(mktemp)"
 trap 'rm -rf "$EXPORT"; rm -f "$BODY"' EXIT
 
-# The function, exactly as committed at the ref, with its dependencies.
+# The function as committed at the ref, with its dependencies.
 SRC="$EXPORT/neon/functions/login"
 git archive --format=tar "$REF" neon/functions/login | tar -x -C "$EXPORT"
 echo "Installing function dependencies"

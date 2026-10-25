@@ -1,22 +1,8 @@
 #!/usr/bin/env bash
-# =============================================================================
-# push-space.sh - push this repository as a Hugging Face Space (Docker SDK).
-#
-# Usage (from anywhere in the repo, Git Bash on Windows):
-#   HF_USER=<hugging-face-username> HF_TOKEN=<write-token> ./deploy/push-space.sh [space-name]
-#
-# Ships the most recent release tag by default - a frozen revision - rather
-# than the working state of the branch. Override the ref when needed:
-#   REF=1.0.1  ./deploy/push-space.sh     # a specific tag
-#   REF=master ./deploy/push-space.sh     # the branch tip (pre-release checks)
-#
-# Defaults to space name "rasa-attendance-bot". The script builds a staging
-# tree from the chosen ref (rasa/, action_server/ and deploy/space/ - exactly
-# as committed there), adds the Space metadata (the generated README.md lives
-# only inside the Space repository) and force-pushes the result as a single
-# fresh commit. When the ref is a tag, the same tag is pushed to the Space
-# repository too, so the deployed revision is labelled.
-# =============================================================================
+# push-space.sh: publish this repo as a Hugging Face Space (Docker SDK).
+# Usage: HF_USER=<user> HF_TOKEN=<write-token> ./deploy/push-space.sh [space-name]
+# Ships the latest release tag unless REF is set (REF=main for the branch tip).
+# Force-pushes one fresh commit. A tag ref is also pushed to the Space.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -26,8 +12,7 @@ cd "$REPO_ROOT"
 : "${HF_TOKEN:?set HF_TOKEN to a Hugging Face write token}"
 SPACE_NAME="${1:-rasa-attendance-bot}"
 
-# What to ship: the REF environment variable wins, then a second argument,
-# then the latest release tag, then the branch tip.
+# REF env var, then 2nd argument, then latest tag, then branch tip.
 REF="${REF:-${2:-}}"
 if [ -z "$REF" ]; then
   REF="$(git describe --tags --abbrev=0 2>/dev/null || true)"
@@ -38,7 +23,7 @@ git rev-parse -q --verify "$REF^{commit}" >/dev/null 2>&1 \
 VERSION="$(git rev-parse --short "$REF^{commit}")"
 echo "Shipping ref '$REF' ($VERSION)"
 
-# Mirror the tag on the Space when the ref is a tag (checked before we cd).
+# Mirror a tag ref onto the Space.
 TAG_MIRROR=""
 if git rev-parse -q --verify "refs/tags/$REF" >/dev/null 2>&1; then
   TAG_MIRROR="$REF"
@@ -47,14 +32,14 @@ fi
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
-# The application code and the Space's hosting files, exactly as in the ref.
+# App code and Space files, as committed at the ref.
 git archive --format=tar "$REF" rasa action_server deploy/space | tar -x -C "$STAGE"
 mv "$STAGE/deploy/space/Dockerfile" "$STAGE/Dockerfile"
 mv "$STAGE/deploy/space/start.sh" "$STAGE/start.sh"
 rm -rf "$STAGE/deploy"
 chmod +x "$STAGE/start.sh"
 
-# Space configuration. Generated here; this repository never commits readmes.
+# Generated Space README (not committed here).
 cat > "$STAGE/README.md" <<'EOF'
 ---
 title: Rasa Attendance Bot

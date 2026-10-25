@@ -1,34 +1,16 @@
-/* =============================================================================
-   login - student login endpoint for the Campus Attendance Bot.
+/* login: student sign-in endpoint for Octopi, deployed as a Neon Function.
+   Same request/response contract as rasa/auth_channel.py.
 
-   A Neon Function (https://neon.com/docs/compute/functions): a small
-   always-reachable HTTP handler deployed onto the project's `main` branch,
-   next to the `users` table. It gets a public HTTPS URL and the runtime
-   injects DATABASE_URL.
+   POST {"username": "alicejohnson", "password": "johnsonalice"}
+   200 ok | 400 missing fields | 401 bad credentials | 503 database down
 
-   Drop-in replacement for the Rasa custom channel endpoint
-   (rasa/auth_channel.py) - same request/response contract:
-
-       POST  {"username": "alicejohnson", "password": "johnsonalice"}
-       200   {"ok": true,  "first_name": "Alice", "last_name": "Johnson"}
-       400   {"ok": false, "error": "username and password are required"}
-       401   {"ok": false, "error": "invalid credentials"}
-       503   {"ok": false, "error": "login service unavailable"}
-
-   Matching is case-insensitive and ignores whitespace ("Alice Johnson" /
-   "Johnson Alice" work too), mirroring the channel's _clean() rule.
-
-   Deploy:  neon functions deploy login --src neon/functions/login --wait
-   (or ./deploy/deploy-neon-login.sh). The React web chat and the static
-   demo Space call this endpoint so sign-in works even when the Rasa
-   backend is asleep; Rasa's /auth/login stays as a fallback.
-   ============================================================================= */
+   Deploy: ./deploy/deploy-neon-login.sh
+*/
 
 import { Pool } from "pg";
 import { attachDatabasePool } from "@neon/functions";
 
-// One pool per isolate, reused across requests (see the Neon Functions
-// docs): created at module scope, kept small - each isolate has its own.
+// One pool per isolate, reused across requests.
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
 attachDatabasePool(pool);
 
@@ -46,8 +28,7 @@ function json(body, status = 200) {
   });
 }
 
-// Mirrors _clean() in rasa/auth_channel.py: drop all whitespace, lowercase
-// ("Alice Johnson" -> "alicejohnson").
+// Same rule as rasa/auth_channel.py: drop spaces, lowercase.
 function clean(value) {
   return String(value ?? "")
     .replace(/\s+/g, "")
@@ -56,7 +37,7 @@ function clean(value) {
 
 export default {
   async fetch(request) {
-    // CORS preflight (the web chat is hosted on a different origin).
+    // CORS preflight.
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
@@ -68,7 +49,7 @@ export default {
     try {
       payload = await request.json();
     } catch {
-      // Same as the channel: an unreadable body is treated as an empty one.
+      // Bad JSON counts as an empty body.
     }
 
     const username = clean(payload?.username);

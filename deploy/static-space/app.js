@@ -1,20 +1,7 @@
-/* =============================================================================
-   Campus Attendance Bot — in-browser demo.
-
-   A client-side replay of the deployed bot's dialogue: the same intents, the
-   same response templates, the same 15 seeded students and the same student
-   login rule (username = first+last, password = last+first), so the chat
-   works with no server. The sign-in is checked against the live database
-   when reachable — a Neon Function endpoint (neon/functions/login/) running
-   the same rule as the bot's /auth/login channel (rasa/auth_channel.py); if
-   it cannot be reached, the rule is applied in the browser instead. The
-   real stack (Rasa 3.6 + rasa-sdk action server + SQLite / Neon Postgres)
-   produces identical answers — the transcripts on the main README were
-   recorded from it.
-   ============================================================================= */
+/* In-browser demo: replays the bot offline, with the Neon login for sign-in. */
 "use strict";
 
-/* --- the seeded cohort (mirrors the attendance database) ------------------- */
+/* Students (matches the database). */
 
 const STUDENTS = [
   { first: "Alice", middle: "Marie", last: "Johnson", campus: "Craiglockhart", type: "Lecture", day: "Monday", time: "10:00-12:00", subject: "Fine Arts", room: "F14" },
@@ -34,7 +21,7 @@ const STUDENTS = [
   { first: "Olivia", middle: "Faith", last: "White", campus: "Merchiston", type: "Lecture", day: "Friday", time: "12:00-14:00", subject: "Biology", room: "F69" },
 ];
 
-/* --- response templates (verbatim from the live bot) ----------------------- */
+/* Reply templates (same wording as the live bot). */
 
 const SAY = {
   welcome:
@@ -75,7 +62,7 @@ const SAY = {
     "I didn't quite understand that. You can ask me about your lecture or practical days, campus location, time, subject, or room number.",
 };
 
-/* --- dialogue engine ------------------------------------------------------- */
+/* Dialogue engine. */
 
 function normalize(text) {
   return text
@@ -99,7 +86,7 @@ function titleCase(word) {
 }
 
 function parseIntroducedName(text) {
-  // "my name is john doe", "i am john doe", "this is jane roe here" ...
+  // e.g. 'my name is john doe', 'this is jane roe here'.
   const m = text.match(
     /(?:my name is|my name's|name is|name's|\bi am\b|\bi'm\b|\bim\b|\bthis is\b|\bhere\b)\s+([a-z]+(?: [a-z]+){1,2})/
   );
@@ -129,21 +116,18 @@ const RE = {
   filler: /^(ok|okay|cool|nice|hmm+|hm|yeah|sure|right|oh|ah|meh|k|np|got it)\.?$/,
 };
 
-/**
- * Produce the bot's reply (or replies) for a user message.
- * Returns { texts: string[], student: object|null }.
- */
+/** Reply to a user message: { texts, student }. */
 function reply(text, student) {
   const t = normalize(text);
   if (!t) return { texts: [SAY.fallback], student };
 
-  // 1. A known student's name anywhere in the sentence = an introduction.
+  // 1. Known student name: introduction.
   const found = findStudentIn(t);
   if (found) {
     return { texts: [SAY.found(found.first, found.last)], student: found };
   }
 
-  // 2. An introduction phrasing with an unknown name.
+  // 2. Unknown name: retry.
   const candidate = parseIntroducedName(t);
   if (candidate) {
     const [f, ...rest] = candidate.split(" ");
@@ -155,7 +139,7 @@ function reply(text, student) {
   if (RE.thanks.test(t)) return { texts: [SAY.thanks], student };
   if (RE.greeting.test(t)) return { texts: [SAY.welcome], student };
 
-  // 4. Schedule questions (each needs a student on record first).
+  // 4. Schedule questions: need a known student.
   const scheduleQuestion =
     RE.details.test(t) ||
     RE.lecture.test(t) ||
@@ -193,17 +177,12 @@ function reply(text, student) {
     if (RE.room.test(t)) return { texts: [SAY.room(student)], student };
   }
 
-  // 5. Neither a question nor an introduction.
+  // 5. Fallback.
   if (RE.filler.test(t)) return { texts: [SAY.fallback], student };
   return { texts: [SAY.outOfScope], student };
 }
 
-/**
- * Offline check of the login form's credentials - the same rule the live
- * backend applies (rasa/auth_channel.py): username = first+last name,
- * password = last+first name, lowercase, whitespace ignored.
- * Returns the student object on success, otherwise null.
- */
+/** Login check, same rule as rasa/auth_channel.py. */
 function checkCredentials(username, password) {
   const u = String(username || "").toLowerCase().replace(/\s+/g, "");
   const p = String(password || "").toLowerCase().replace(/\s+/g, "");
@@ -219,11 +198,7 @@ function checkCredentials(username, password) {
   return null;
 }
 
-/* --- the live login endpoint -------------------------------------------------
-   A Neon Function deployed next to the bot's database (the `users` table),
-   with the same request/response contract as the Rasa channel
-   (rasa/auth_channel.py). When it is unreachable, the in-browser rule above
-   answers instead, so the demo always works. */
+/* Live login: Neon Function, same contract as rasa/auth_channel.py. */
 
 const AUTH_URL =
   "https://br-empty-violet-b70xbc42-login.compute.c-13.us-east-1.aws.neon.tech/";
@@ -256,7 +231,7 @@ async function loginRequest(username, password) {
   }
 }
 
-/* --- chat UI --------------------------------------------------------------- */
+/* Chat UI. */
 
 const messagesEl = document.getElementById("messages");
 const quickEl = document.getElementById("quick");
@@ -291,7 +266,7 @@ function appendMessage(from, text) {
   div.className = `msg msg-${from}`;
 
   const body = document.createElement("span");
-  // Render the bot's tiny **bold** markdown; everything else is plain text.
+  // Bot replies: **bold** only, the rest is plain text.
   text.split(/(\*\*[^*]+\*\*)/g).forEach((part) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       const strong = document.createElement("strong");
@@ -416,27 +391,20 @@ function resetChat() {
   greetSignedIn();
 }
 
-/* --- wiring ---------------------------------------------------------------- */
+/* Wiring. */
 
 formEl.addEventListener("submit", (e) => {
   e.preventDefault();
   send(inputEl.value);
 });
 
-/* --- voice input (English) --------------------------------------------------
-   The browser's built-in speech recognition (Chrome, Edge and Safari ship it
-   and stream live words) is preferred; where it is missing or dead (Firefox
-   has no API, Opera GX exposes one that never fires) the mic captures raw
-   audio and transcribes live, on-device, with a small Whisper model. Either
-   way the transcript streams into the box while you speak, tapping the mic
-   again stops dictation, and the text stays for review before sending. */
+/* Voice input: browser speech, or on-device Whisper where that fails. */
 
 const DEFAULT_PLACEHOLDER = inputEl.placeholder;
 const SpeechRecognitionClass =
   window.SpeechRecognition || window.webkitSpeechRecognition || null;
 
-// Opera's Chromium builds ship no speech service (the API exists but no event
-// ever fires) and Firefox has no API at all - both use the on-device model.
+// Opera and Firefox lack a usable speech service: use the on-device model.
 const IS_OPERA = /OPR\//.test(navigator.userAgent);
 const CAN_WHISPER =
   !!(window.AudioContext || window.webkitAudioContext) &&
@@ -492,8 +460,7 @@ function showSpeechHint(message) {
   }, SPEECH_HINT_MS);
 }
 
-// Ends any running dictation: the built-in recognizer and the on-device
-// capture. stop() throws when the recognizer is not running - a no-op.
+// Stop dictation: the built-in recognizer and the on-device capture.
 function stopListening() {
   speechActive = false; // late results must not rewrite the box
   wantListen = false;
@@ -509,8 +476,7 @@ function stopListening() {
   if (recording) stopWhisperRecording();
 }
 
-// Everything dictated so far: what was already typed + finals from ended
-// sessions + the running session's final and interim words.
+// All dictated text so far.
 function composeSpeechText() {
   return [speechBase, committedSpeech, sessionFinal, sessionInterim]
     .map((s) => s.trim())
@@ -522,8 +488,7 @@ function basePlus(text) {
   return speechBase ? speechBase + " " + text : text;
 }
 
-// Whisper hallucinates phrases like "[BLANK_AUDIO]" or "thank you" on silent
-// input - strip them before they ever reach the message box.
+// Drop Whisper's silence hallucinations ('[BLANK_AUDIO]', 'thank you').
 function scrubTranscript(raw) {
   return String(raw || "")
     .replace(/\[[^\]]{0,40}\]/g, " ")
@@ -548,8 +513,7 @@ function peakOf(samples) {
   return peak;
 }
 
-// Join a transcript onto committed text, dropping words repeated across the
-// overlap between two live passes (e.g. "...what time | time is my session").
+// Join a pass onto the committed text, skipping overlapped words.
 function mergeTranscript(committed, addition) {
   const a = committed.trim() ? committed.trim().split(/\s+/) : [];
   const b = addition.trim() ? addition.trim().split(/\s+/) : [];
@@ -567,9 +531,7 @@ function mergeTranscript(committed, addition) {
   return [...a, ...b].join(" ");
 }
 
-// --- raw PCM capture: AudioWorklet when available, ScriptProcessor where not.
-// The worklet runs on the audio thread, so capture never stalls while Whisper
-// (wasm) is busy on the main thread - no dropped words mid-dictation.
+// Raw PCM capture: AudioWorklet off the main thread; ScriptProcessor as fallback.
 const CAPTURE_WORKLET_SOURCE = `
 class DictationCapture extends AudioWorkletProcessor {
   constructor() {
@@ -604,10 +566,9 @@ function getCaptureWorkletUrl() {
   return captureWorkletUrl;
 }
 
-// Returns a detach function that unhooks the tap again.
+// Returns a function that detaches the tap.
 async function attachPcmTap(ctx, sourceNode, onBlock) {
-  // The tap leads into a muted gain node - it exists only to pull audio
-  // through, never to be heard.
+  // Muted gain: pulls audio through, never played.
   const silent = ctx.createGain();
   silent.gain.value = 0;
   if (ctx.audioWorklet) {
@@ -653,8 +614,7 @@ async function attachPcmTap(ctx, sourceNode, onBlock) {
   };
 }
 
-// Box-average decimation - a cheap anti-alias filter. Only needed when the
-// AudioContext refuses the 16 kHz it is created with.
+// Box-average downsampling, if the context refuses 16 kHz.
 function downsample16k(raw, ratio) {
   const outLen = Math.max(1, Math.floor(raw.length / ratio));
   const out = new Float32Array(outLen);
@@ -672,7 +632,7 @@ function downsample16k(raw, ratio) {
   return out;
 }
 
-// --- on-device capture: raw PCM in, live transcript out ---------------------
+// On-device capture and live transcript.
 
 function rawLength() {
   let n = 0;
@@ -703,7 +663,7 @@ function gatherRaw(startRaw, endRaw) {
   return out.subarray(0, offset);
 }
 
-// A slice of the recording at the 16 kHz the model works in.
+// Slice of the recording at 16 kHz.
 function slice16k(start16, end16) {
   if (capRate === WHISPER_RATE) return gatherRaw(start16, end16);
   const ratio = capRate / WHISPER_RATE;
@@ -731,10 +691,7 @@ function releaseCapture() {
   closeLevelCtx(); // closes the shared microphone AudioContext
 }
 
-// Transcribe ~3 s slices while the user is still speaking, so words stream
-// into the box (ChatGPT-style dictation). Passes run one at a time; when the
-// model is slower than real time the slices simply get bigger, and the final
-// pass at stop replaces the live text with one clean transcript.
+// Transcribe ~3 s slices while speaking, one pass at a time.
 async function pumpLiveTranscription() {
   if (liveBusy) return;
   liveBusy = true;
@@ -758,8 +715,7 @@ async function pumpLiveTranscription() {
       const from = Math.max(0, covered - LIVE_OVERLAP_S * WHISPER_RATE);
       const samples = slice16k(from, end);
       liveCovered = end;
-      // Nothing audible in this slice: skip it - Whisper only hallucinates on
-      // silence, and the pass costs real compute.
+      // Silent slice: skip it, since Whisper hallucinates on silence.
       if (peakOf(samples) < SILENT_PEAK) continue;
       let text = "";
       try {
@@ -779,12 +735,11 @@ async function pumpLiveTranscription() {
   }
 }
 
-/* --- on-device fallback: raw PCM + Whisper (transformers.js) --------------- */
+/* On-device fallback: Whisper via transformers.js. */
 
 let whisperLibPromise = null;
 function loadWhisperLib() {
-  // The published dist file is an ES module - import it dynamically
-  // (dynamic import is allowed in a classic script; a <script> tag is not).
+  // Dynamic import: the dist file is an ES module.
   if (!whisperLibPromise) {
     whisperLibPromise = import(WHISPER_CDN).catch((err) => {
       whisperLibPromise = null; // allow a retry on the next tap
@@ -837,10 +792,7 @@ function useWhisper(message) {
   if (message) showSpeechHint(message);
 }
 
-// Some Chromium builds expose the speech API but start() never produces a
-// single event. Once the microphone is allowed (a permission prompt is its
-// own UI and takes its time), give the service a moment and switch to the
-// on-device model if nothing at all happens.
+// Fall back to the on-device model if the speech service never fires an event.
 function pollForDeadSpeechService() {
   clearInterval(permPoll);
   const startedAt = Date.now();
@@ -886,8 +838,7 @@ async function startWhisperRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    // Ask for 16 kHz up front - the context resamples the microphone stream
-    // for us, exactly the rate the model wants.
+    // Ask for 16 kHz; the context resamples the mic for us.
     const ctx = new AudioCtx({ sampleRate: WHISPER_RATE });
     if (ctx.state === "suspended" && ctx.resume) ctx.resume();
     const source = ctx.createMediaStreamSource(stream);
@@ -901,14 +852,12 @@ async function startWhisperRecording() {
     recording = true;
     speechBase = inputEl.value.trim();
 
-    // Capture off the audio thread so Whisper's work on the main thread
-    // never drops words.
+    // Capture off the audio thread, so Whisper cannot drop words.
     capDetach = await attachPcmTap(ctx, source, (block) => {
       if (recording) capBlocks.push(block);
     });
 
-    // Watch the input level: tell the user while recording when the
-    // microphone delivers nothing (muted, off or the wrong device).
+    // Warn while recording if the mic delivers no sound.
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
     source.connect(analyser);
@@ -925,7 +874,7 @@ async function startWhisperRecording() {
       }
       if (peak > 0.01) {
         if (micWarned) {
-          // Sound arrived after all - take the warning back down.
+          // Sound arrived: clear the warning.
           micWarned = false;
           clearTimeout(speechHintTimer);
           speechHint.hidden = true;
@@ -943,7 +892,7 @@ async function startWhisperRecording() {
       }
     }, 300);
 
-    // Fetch and warm up the small speech model while the user speaks.
+    // Warm up the speech model while the user speaks.
     loadWhisperModel((pct) =>
       showSpeechHint(
         pct >= 100
@@ -990,8 +939,7 @@ function closeLevelCtx() {
   levelCtx = null;
 }
 
-// The final pass over the whole recording: replaces whatever the live passes
-// produced with one clean transcript of the full audio.
+// Final pass: one clean transcript replaces the live text.
 async function finalizeRecording() {
   const samples = slice16k(0, total16k());
   if (!samples.length) {
@@ -1011,7 +959,7 @@ async function finalizeRecording() {
   updateMicPlaceholder();
   showSpeechHint("Transcribing…");
   try {
-    // Lift quiet recordings (low-gain microphones) before transcription.
+    // Lift quiet recordings (low-gain mics) before transcription.
     if (peak < 0.5) {
       const gain = Math.min(0.9 / peak, 20);
       for (let i = 0; i < samples.length; i += 1) samples[i] *= gain;
@@ -1044,7 +992,7 @@ async function finalizeRecording() {
   }
 }
 
-/* --- wiring --------------------------------------------------------------- */
+/* Wiring. */
 
 if (BROWSER_SPEECH_OK) {
   recognizer = new SpeechRecognitionClass();
@@ -1080,7 +1028,7 @@ if (BROWSER_SPEECH_OK) {
     clearTimeout(speechWatchdog);
     if (event.error === "network" || event.error === "service-not-allowed") {
       wantListen = false;
-      // The built-in service is unreachable here - use the on-device model.
+      // Service unreachable: use the on-device model.
       useWhisper(
         "This browser's speech service isn't available - switched to on-device voice. Tap the mic and speak."
       );
@@ -1100,8 +1048,7 @@ if (BROWSER_SPEECH_OK) {
   recognizer.onend = () => {
     clearTimeout(speechWatchdog);
     if (wantListen && speechActive) {
-      // The service ends a session on its own after a pause - keep the text
-      // so far and start a fresh session so dictation continues.
+      // Session ended on its own: keep the text, start a new one.
       noSignalRestarts += 1;
       if (noSignalRestarts > 20) {
         speechActive = false;
@@ -1235,6 +1182,6 @@ themeToggle.addEventListener("click", () => {
 themeToggle.textContent =
   document.documentElement.dataset.theme === "dark" ? "☀️" : "🌙";
 
-/* --- initial state: the login gate (chat opens after sign-in) -------------- */
+/* Initial state: login gate. */
 
 loginUser.focus();
