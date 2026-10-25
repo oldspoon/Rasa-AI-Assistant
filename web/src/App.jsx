@@ -5,9 +5,9 @@ const K_THEME = "attendance-bot-theme";
 const K_CVD = "attendance-bot-cvd";
 
 const THEMES = [
-  { id: "system", label: "System" },
-  { id: "light", label: "Light" },
-  { id: "dark", label: "Dark" },
+  { id: "system", label: "System", icon: "fa-desktop" },
+  { id: "light", label: "Light", icon: "fa-sun" },
+  { id: "dark", label: "Dark", icon: "fa-moon" },
 ];
 
 // Colour-vision modes - each switches the UI to a palette tuned for that
@@ -18,6 +18,14 @@ const CVD_MODES = [
   { id: "deuteranopia", label: "Deuteranopia", hint: "green-blind · purple palette" },
   { id: "tritanopia", label: "Tritanopia", hint: "blue-blind · red palette" },
   { id: "achromatopsia", label: "Achromatopsia", hint: "no colour · greyscale" },
+];
+
+// Sidebar ("local navigation") quick questions - the docs-page way to run
+// the bot's most common asks with one click.
+const SIDEBAR_QUESTIONS = [
+  { icon: "fa-calendar-days", label: "Lecture days", message: "What days do I have lectures?" },
+  { icon: "fa-flask", label: "Practical days", message: "What days do I have practicals?" },
+  { icon: "fa-list-check", label: "Full schedule", message: "Give me all my schedule details." },
 ];
 
 const BASE_REPLIES = [
@@ -187,35 +195,32 @@ export default function App() {
   }
 
   return (
-    <div className="chat">
-      <header>
-        <div className="title">
-          <h1>🎓 Attendance Bot</h1>
-          <p>React + Vite — talks to Rasa over the REST channel</p>
+    <div className="page">
+      <nav className="topbar">
+        <div className="brand">
+          <i className="fa-solid fa-graduation-cap" aria-hidden="true" />
+          <span>Campus Attendance Bot</span>
+          <span className="brand-chip">Web Chat</span>
         </div>
 
         <div className="menu-wrap" ref={menuRef}>
           <button
             type="button"
-            className="icon-btn"
+            className="top-icon-btn"
             aria-label="Options"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((open) => !open)}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M3 6h18M3 12h18M3 18h18"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
+            <i className="fa-solid fa-bars" aria-hidden="true" />
           </button>
 
           {menuOpen && (
             <div className="menu" role="menu" aria-label="Options">
-              <p className="menu-label">Appearance</p>
+              <p className="menu-label">
+                <i className="fa-solid fa-palette" aria-hidden="true" />
+                Appearance
+              </p>
               <div className="segmented" role="group" aria-label="Theme">
                 {THEMES.map((t) => (
                   <button
@@ -224,12 +229,16 @@ export default function App() {
                     aria-pressed={themePref === t.id}
                     onClick={() => setThemePref(t.id)}
                   >
+                    <i className={`fa-solid ${t.icon}`} aria-hidden="true" />
                     {t.label}
                   </button>
                 ))}
               </div>
 
-              <p className="menu-label">Colour vision</p>
+              <p className="menu-label">
+                <i className="fa-solid fa-eye" aria-hidden="true" />
+                Colour vision
+              </p>
               <div className="cvd" role="group" aria-label="Colour-vision mode">
                 {CVD_MODES.map((m) => (
                   <button
@@ -247,60 +256,142 @@ export default function App() {
 
               <hr />
 
-              <button type="button" className="menu-action" onClick={newConversation}>
-                🔄 Start a new conversation
+              <button
+                type="button"
+                className="menu-action"
+                onClick={newConversation}
+                disabled={busy}
+              >
+                <i className="fa-solid fa-rotate-right" aria-hidden="true" />
+                Start a new conversation
               </button>
             </div>
           )}
         </div>
-      </header>
+      </nav>
 
-      <div className="messages" aria-live="polite">
-        {messages.map((m, i) => (
-          <div key={i} className={`bubble ${m.from}`}>
-            <RichText text={m.text} />
-            <span className="time">{fmtTime(m.ts)}</span>
-          </div>
-        ))}
+      <div className="layout">
+        <aside className="sidebar">
+          <p className="group-label">Ask about</p>
+          {SIDEBAR_QUESTIONS.map((q) => (
+            <button
+              key={q.label}
+              type="button"
+              className="nav-item"
+              disabled={busy}
+              onClick={() => sendMessage(q.message)}
+            >
+              <i className={`fa-solid ${q.icon}`} aria-hidden="true" />
+              <span>{q.label}</span>
+            </button>
+          ))}
 
-        {busy && (
-          <div className="bubble bot typing" aria-label="The bot is typing">
-            <span className="dot" />
-            <span className="dot" />
-            <span className="dot" />
-          </div>
-        )}
+          <p className="group-label">Conversation</p>
+          <button
+            type="button"
+            className="nav-item"
+            disabled={busy}
+            onClick={newConversation}
+          >
+            <i className="fa-solid fa-rotate-right" aria-hidden="true" />
+            <span>New conversation</span>
+          </button>
+        </aside>
 
-        {showQuickReplies && (
-          <div className="chips" role="group" aria-label="Suggested questions">
-            {quickReplies.map((q) => (
+        <main className="content">
+          <div className="content-inner">
+            <p className="crumbs">
+              <span>React Web Chat</span>
+              <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+              <span>Attendance Bot</span>
+            </p>
+
+            <h1 className="page-title">Ask the Attendance Bot</h1>
+
+            <p className="lede">
+              Look up your lecture and practical sessions — campus, day, time,
+              subject and room — by telling the bot your first and last name.
+            </p>
+
+            <div className="badges">
+              <span className="badge">
+                <i className="fa-solid fa-graduation-cap" aria-hidden="true" />
+                Student records
+              </span>
+              <span className="badge">
+                <i className="fa-solid fa-robot" aria-hidden="true" />
+                Rasa 3.6
+              </span>
+              <span className="badge">
+                <i className="fa-solid fa-plug" aria-hidden="true" />
+                REST channel
+              </span>
+              <span className="badge">
+                <i className="fa-solid fa-database" aria-hidden="true" />
+                SQLite
+              </span>
+            </div>
+
+            <h2 className="section-title">Conversation</h2>
+
+            <div className="messages" aria-live="polite">
+              {messages.map((m, i) => (
+                <div key={i} className={`bubble ${m.from}`}>
+                  <RichText text={m.text} />
+                  <span className="time">{fmtTime(m.ts)}</span>
+                </div>
+              ))}
+
+              {busy && (
+                <div className="bubble bot typing" aria-label="The bot is typing">
+                  <span className="dot" />
+                  <span className="dot" />
+                  <span className="dot" />
+                </div>
+              )}
+
+              {showQuickReplies && (
+                <div className="chips" role="group" aria-label="Suggested questions">
+                  {quickReplies.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      className="chip"
+                      onClick={() => sendMessage(q)}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div ref={bottomRef} />
+            </div>
+
+            <form className="composer" onSubmit={onSubmit}>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Message"
+                aria-label="Message"
+                autoFocus
+              />
               <button
-                key={q}
-                type="button"
-                className="chip"
-                onClick={() => sendMessage(q)}
+                type="submit"
+                className="send-btn"
+                aria-label="Send"
+                disabled={busy || !input.trim()}
               >
-                {q}
+                <i className="fa-solid fa-paper-plane" aria-hidden="true" />
               </button>
-            ))}
+            </form>
+
+            <footer className="footer">
+              Built with Rasa Open Source · React 19 + Vite · SQLite
+            </footer>
           </div>
-        )}
-
-        <div ref={bottomRef} />
+        </main>
       </div>
-
-      <form onSubmit={onSubmit}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message…"
-          aria-label="Message"
-          autoFocus
-        />
-        <button type="submit" disabled={busy || !input.trim()}>
-          Send
-        </button>
-      </form>
     </div>
   );
 }
