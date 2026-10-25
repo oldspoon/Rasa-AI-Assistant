@@ -18,7 +18,7 @@ Try it: https://oldspoon.github.io/Rasa-AI-Assistant/
 Rasa calls the action server over HTTP (`rasa/endpoints.yml` points at
 `http://localhost:5055/webhook`). Storage is SQLite by default, Postgres the
 moment `DATABASE_URL` is set. Same code, no branches. Two tables: `attendance`
-(campus, session type, day, time, subject, room) and `users`.
+(one lecture and one practical per student: campus, day, time, subject, room) and `users`.
 
 Diagrams of the hosted setup, local setup and a conversation's life:
 [`docs/architecture.md`](docs/architecture.md).
@@ -78,7 +78,7 @@ and change both files together, or they'll drift.
 
 ## Colour modes
 
-The web chat uses the achromatopsia (greyscale) palette by default, so nothing depends on colour alone. It is named "Default" in the options menu. The menu also offers full colour and palettes for protanopia, deuteranopia and tritanopia. The choice is saved in the browser, and the palettes are in `web/src/styles/tokens.css`.
+The web chat uses the achromatopsia (greyscale) palette by default, so nothing depends on colour alone. It is named "Default" in the options menu. The menu also offers palettes for protanopia, deuteranopia, tritanopia and deuteranomaly. The choice is saved in the browser, and the palettes are in `web/src/styles/tokens.css`.
 
 ## Deployment
 
