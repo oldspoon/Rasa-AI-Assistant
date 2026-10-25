@@ -31,7 +31,9 @@ def test_lowercase_credentials_are_accepted() -> None:
     """alicejohnson / johnsonalice signs Alice Johnson in."""
     response = _login("alicejohnson", "johnsonalice")
     assert response.status_code == 200
-    assert response.json() == {
+    body = response.json()
+    assert body.pop("token")
+    assert body == {
         "ok": True,
         "first_name": "Alice",
         "last_name": "Johnson",

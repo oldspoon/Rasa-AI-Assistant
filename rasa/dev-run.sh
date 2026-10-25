@@ -195,6 +195,8 @@ case "$MODE" in
             stop_port "$RASA_PORT" "Rasa server"
         fi
         trap cleanup_run_server EXIT
+        # Local testing: the chat webhook accepts messages without a login token.
+        export RASA_ALLOW_ANONYMOUS=1
         SHELL_CMD=("$PY" -m rasa shell --enable-api)
         WRAP="$(winpty_wrapper)"
         if [[ -n "$WRAP" ]]; then
