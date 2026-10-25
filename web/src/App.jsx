@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { reply as demoReply } from "./demoEngine.js";
 
 const K_SENDER = "attendance-bot-sender";
 const K_THEME = "attendance-bot-theme";
@@ -112,8 +113,10 @@ export default function App() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
   const bottomRef = useRef(null);
   const menuRef = useRef(null);
+  const demoStateRef = useRef({ student: null });
 
   const userHasSpoken = messages.some((m) => m.from === "user");
   const quickReplies = [
@@ -165,17 +168,20 @@ export default function App() {
         ...msgs,
         ...replies.map((reply) => ({ from: "bot", text: reply.text, ts })),
       ]);
-    } catch (err) {
+      setDemoMode(false);
+    } catch {
+      // Backend unreachable (e.g. the hosted Space is parked). Answer from
+      // the in-browser demo engine so the page always works: same intents,
+      // same response wording, same seeded students.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const result = demoReply(message, demoStateRef.current.student);
+      demoStateRef.current.student = result.student;
+      const ts = Date.now();
       setMessages((msgs) => [
         ...msgs,
-        {
-          from: "bot",
-          text:
-            `⚠️ Could not reach the bot (${err.message}).\n` +
-            "Is the Rasa server running?  cd ../rasa && ./dev-run.sh -r",
-          ts: Date.now(),
-        },
+        ...result.texts.map((text) => ({ from: "bot", text, ts })),
       ]);
+      setDemoMode(true);
     } finally {
       setBusy(false);
     }
@@ -194,6 +200,8 @@ export default function App() {
     setSender(id);
     setMessages([welcomeMessage()]);
     setInput("");
+    demoStateRef.current.student = null;
+    setDemoMode(false);
   }
 
   return (
@@ -333,6 +341,18 @@ export default function App() {
                 SQLite
               </span>
             </div>
+
+            {demoMode && (
+              <div className="demo-banner" role="status">
+                <i className="fa-solid fa-circle-info" aria-hidden="true" />
+                <span>
+                  The live Rasa backend isn't reachable right now, so replies
+                  come from the <strong>in-browser demo engine</strong> — same
+                  intents and replies, with the same student data. It
+                  reconnects automatically when the backend is up.
+                </span>
+              </div>
+            )}
 
             <h2 className="section-title">Conversation</h2>
 
