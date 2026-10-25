@@ -10,6 +10,7 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet
 
+from actions import schedule
 from actions.parking import BUTTONS, arrears_message
 from database import db
 
@@ -32,16 +33,34 @@ def _fetch_student(first_name: str, last_name: str) -> dict | None:
         return None
 
 
+def _fetch_sessions(first_name: str, last_name: str) -> list:
+    """The student's weekly sessions, Lecture first. Empty if the database fails."""
+    sql = """
+        SELECT *
+        FROM   attendance
+        WHERE  LOWER(first_name) = LOWER(?)
+          AND  LOWER(last_name)  = LOWER(?)
+        ORDER  BY session_type
+    """
+    try:
+        return db.fetch_all(sql, (first_name.strip(), last_name.strip()))
+    except Exception as exc:
+        logger.error("Database error in _fetch_sessions: %s", exc)
+        return []
+
+
 def _fetch_parking_arrears(first_name: str, last_name: str) -> list | None:
     """Unpaid charges, only on the campus the student attends. None if the database fails."""
     sql = """
         SELECT p.campus, p.location, p.license_plate, p.issued_at, p.fine_pence
         FROM parking_arrears p
-        JOIN attendance a
-          ON a.first_name = p.first_name
-         AND a.last_name = p.last_name
-         AND a.campus = p.campus
         WHERE p.first_name = ? AND p.last_name = ?
+          AND EXISTS (
+              SELECT 1 FROM attendance a
+              WHERE a.first_name = p.first_name
+                AND a.last_name = p.last_name
+                AND a.campus = p.campus
+          )
         ORDER BY p.issued_at
     """
     try:
@@ -86,6 +105,27 @@ def _student_or_error(
         return None
 
     return row
+
+
+def _sessions_or_error(
+    dispatcher: CollectingDispatcher, tracker: Tracker
+) -> tuple[dict, list] | None:
+    """Return (student, weekly sessions), or None after telling the user why."""
+    student = _student_or_error(dispatcher, tracker)
+    if student is None:
+        return None
+
+    sessions = _fetch_sessions(student["first_name"], student["last_name"])
+    if {s["session_type"] for s in sessions} != set(schedule.KINDS):
+        logger.error("Incomplete weekly schedule for %s", student["first_name"])
+        dispatcher.utter_message(
+            response="utter_student_not_found",
+            first_name=student["first_name"],
+            last_name=student["last_name"],
+        )
+        return None
+
+    return student, sessions
 
 
 def _log_turn(tracker: Tracker, action_name: str) -> None:
@@ -168,30 +208,16 @@ class ActionAnswerLectureDays(Action):
 
         _log_turn(tracker, self.name())
 
-        row = _student_or_error(dispatcher, tracker)
-        if row is None:
+        found = _sessions_or_error(dispatcher, tracker)
+        if found is None:
             return []
+        student, sessions = found
 
-        first = row["first_name"]
-        day   = row["day_of_week"]
-
-        if row["session_type"].lower() == "lecture":
-            dispatcher.utter_message(
-                text=(
-                    f"Hi {first}! You have a **Lecture** session on "
-                    f"**{day}**. Would you like to know more details such "
-                    f"as your campus, time, subject, or room?"
-                )
+        dispatcher.utter_message(
+            text=schedule.session_day_message(
+                student["first_name"], schedule.session_of(sessions, "Lecture")
             )
-        else:
-            dispatcher.utter_message(
-                text=(
-                    f"Hi {first}! You do not have any lecture sessions "
-                    f"registered — your session on **{day}** is a "
-                    f"**{row['session_type']}** session. "
-                    f"Ask me about your practical days if you'd like."
-                )
-            )
+        )
         return []
 
 
@@ -209,30 +235,16 @@ class ActionAnswerPracticalDays(Action):
 
         _log_turn(tracker, self.name())
 
-        row = _student_or_error(dispatcher, tracker)
-        if row is None:
+        found = _sessions_or_error(dispatcher, tracker)
+        if found is None:
             return []
+        student, sessions = found
 
-        first = row["first_name"]
-        day   = row["day_of_week"]
-
-        if row["session_type"].lower() == "practical":
-            dispatcher.utter_message(
-                text=(
-                    f"Hi {first}! You have a **Practical** session on "
-                    f"**{day}**. Would you like to know more details such "
-                    f"as your campus, time, subject, or room?"
-                )
+        dispatcher.utter_message(
+            text=schedule.session_day_message(
+                student["first_name"], schedule.session_of(sessions, "Practical")
             )
-        else:
-            dispatcher.utter_message(
-                text=(
-                    f"Hi {first}! You do not have any practical sessions "
-                    f"registered — your session on **{day}** is a "
-                    f"**{row['session_type']}** session. "
-                    f"Ask me about your lecture days if you'd like."
-                )
-            )
+        )
         return []
 
 
@@ -250,15 +262,13 @@ class ActionAnswerCampus(Action):
 
         _log_turn(tracker, self.name())
 
-        row = _student_or_error(dispatcher, tracker)
-        if row is None:
+        found = _sessions_or_error(dispatcher, tracker)
+        if found is None:
             return []
+        student, sessions = found
 
         dispatcher.utter_message(
-            text=(
-                f"{row['first_name']}, your session on **{row['day_of_week']}** "
-                f"takes place at the **{row['campus']}** campus."
-            )
+            text=schedule.campus_message(student["first_name"], sessions)
         )
         return []
 
@@ -277,15 +287,13 @@ class ActionAnswerTime(Action):
 
         _log_turn(tracker, self.name())
 
-        row = _student_or_error(dispatcher, tracker)
-        if row is None:
+        found = _sessions_or_error(dispatcher, tracker)
+        if found is None:
             return []
+        student, sessions = found
 
         dispatcher.utter_message(
-            text=(
-                f"{row['first_name']}, your **{row['session_type']}** session "
-                f"on **{row['day_of_week']}** runs from **{row['time_range']}**."
-            )
+            text=schedule.time_message(student["first_name"], sessions)
         )
         return []
 
@@ -304,15 +312,13 @@ class ActionAnswerSubject(Action):
 
         _log_turn(tracker, self.name())
 
-        row = _student_or_error(dispatcher, tracker)
-        if row is None:
+        found = _sessions_or_error(dispatcher, tracker)
+        if found is None:
             return []
+        student, sessions = found
 
         dispatcher.utter_message(
-            text=(
-                f"{row['first_name']}, your subject on **{row['day_of_week']}** "
-                f"is **{row['activity']}**."
-            )
+            text=schedule.subject_message(student["first_name"], sessions)
         )
         return []
 
@@ -331,15 +337,13 @@ class ActionAnswerRoom(Action):
 
         _log_turn(tracker, self.name())
 
-        row = _student_or_error(dispatcher, tracker)
-        if row is None:
+        found = _sessions_or_error(dispatcher, tracker)
+        if found is None:
             return []
+        student, sessions = found
 
         dispatcher.utter_message(
-            text=(
-                f"{row['first_name']}, your session is in room **{row['room']}** "
-                f"at the **{row['campus']}** campus."
-            )
+            text=schedule.room_message(student["first_name"], sessions)
         )
         return []
 
@@ -358,23 +362,15 @@ class ActionAnswerAllDetails(Action):
 
         _log_turn(tracker, self.name())
 
-        row = _student_or_error(dispatcher, tracker)
-        if row is None:
+        found = _sessions_or_error(dispatcher, tracker)
+        if found is None:
             return []
+        student, sessions = found
 
-        dispatcher.utter_message(
-            text=(
-                f"Here is the full schedule for "
-                f"**{row['first_name']} {row['last_name']}**:\n\n"
-                f"**Day:**           {row['day_of_week']}\n"
-                f"**Campus:**        {row['campus']}\n"
-                f"**Session type:**  {row['session_type']}\n"
-                f"**Time:**          {row['time_range']}\n"
-                f"**Subject:**       {row['activity']}\n"
-                f"**Room:**          {row['room']}\n\n"
-                f"Is there anything else you'd like to know?"
-            )
+        parts = schedule.full_schedule_parts(
+            student["first_name"], student["last_name"], sessions
         )
+        dispatcher.utter_message(text="\n\n".join(parts))
         return []
 
 
