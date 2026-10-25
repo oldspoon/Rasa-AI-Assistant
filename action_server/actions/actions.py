@@ -10,6 +10,7 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet
 
+from actions.parking import BUTTONS, arrears_message
 from database import db
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,25 @@ def _fetch_student(first_name: str, last_name: str) -> dict | None:
         return db.fetch_one(sql, (first_name.strip(), last_name.strip()))
     except Exception as exc:
         logger.error("Database error in _fetch_student: %s", exc)
+        return None
+
+
+def _fetch_parking_arrears(first_name: str, last_name: str) -> list | None:
+    """Unpaid charges, only on the campus the student attends. None if the database fails."""
+    sql = """
+        SELECT p.campus, p.location, p.license_plate, p.issued_at, p.fine_pence
+        FROM parking_arrears p
+        JOIN attendance a
+          ON a.first_name = p.first_name
+         AND a.last_name = p.last_name
+         AND a.campus = p.campus
+        WHERE p.first_name = ? AND p.last_name = ?
+        ORDER BY p.issued_at
+    """
+    try:
+        return db.fetch_all(sql, (first_name, last_name))
+    except Exception as exc:
+        logger.error("Database error in _fetch_parking_arrears: %s", exc)
         return None
 
 
@@ -354,5 +374,36 @@ class ActionAnswerAllDetails(Action):
                 f"**Room:**          {row['room']}\n\n"
                 f"Is there anything else you'd like to know?"
             )
+        )
+        return []
+
+
+class ActionCheckParkingArrears(Action):
+    """Tell the student about unpaid parking charges and offer ways to pay."""
+
+    def name(self) -> Text:
+        return "action_check_parking_arrears"
+
+    def run(
+        self,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: Dict[Text, Any],
+    ) -> List[Dict[Text, Any]]:
+
+        _log_turn(tracker, self.name())
+
+        student = _student_or_error(dispatcher, tracker)
+        if student is None:
+            return []
+
+        rows = _fetch_parking_arrears(student["first_name"], student["last_name"])
+        if rows is None:
+            dispatcher.utter_message(response="utter_parking_unavailable")
+            return []
+
+        dispatcher.utter_message(
+            text=arrears_message(student["first_name"], rows),
+            buttons=BUTTONS if rows else None,
         )
         return []
