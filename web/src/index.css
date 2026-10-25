@@ -384,6 +384,57 @@ input {
   cursor: default;
 }
 
+/* Conversation id: traces a chat in the logs (see trackTurn in App.jsx). */
+.conv-id {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.conv-id code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 7px 9px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+}
+
+.conv-copy {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.conv-copy:hover,
+.conv-copy.copied {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.conv-hint {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
 /* =============================================================================
    Layout: sidebar + content column
    ============================================================================= */
@@ -736,6 +787,7 @@ input {
 .segmented button:focus-visible,
 .cvd-option:focus-visible,
 .menu-action:focus-visible,
+.conv-copy:focus-visible,
 .chip:focus-visible,
 .composer input:focus-visible,
 .send-btn:focus-visible {
