@@ -129,11 +129,13 @@ const AUTH_URL =
     : "/api") + "/auth/login");
 
 // Voice input. Preferred: the browser's built-in speech recognition (Chrome,
-// Edge, Safari). Where that service is missing or dead (Opera GX exposes the
-// API but never fires an event; Firefox has no API), the mic records with
-// MediaRecorder and transcribes on-device with a small Whisper model
-// (transformers.js) - no account, no server. The transcript lands in the
-// message box for review; VITE_SPEECH_LANG tunes the built-in recognizer.
+// Edge, Safari) streaming live words. Where that service is missing or dead
+// (Opera GX exposes the API but never fires an event; Firefox has no API),
+// the mic captures raw audio and transcribes live, on-device, with a small
+// Whisper model (transformers.js) - no account, no server. Either way the
+// transcript streams into the message box while speaking, tapping the mic
+// again stops dictation and the text stays for review - nothing is sent
+// until Send is pressed. VITE_SPEECH_LANG tunes the built-in recognizer.
 const SpeechRecognitionClass =
   window.SpeechRecognition || window.webkitSpeechRecognition || null;
 const SPEECH_LANG = import.meta.env.VITE_SPEECH_LANG ?? "en-US";
@@ -142,11 +144,19 @@ const SPEECH_LANG = import.meta.env.VITE_SPEECH_LANG ?? "en-US";
 // on-device model there instead of showing a dead button.
 const IS_OPERA = /OPR\//.test(navigator.userAgent);
 const CAN_WHISPER =
-  typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+  !!(window.AudioContext || window.webkitAudioContext) &&
+  !!navigator.mediaDevices?.getUserMedia;
 const BROWSER_SPEECH_OK = !!SpeechRecognitionClass && !IS_OPERA;
 
 // English-only, quantized (~50 MB; the browser caches it after first use).
 const WHISPER_MODEL = "onnx-community/whisper-base.en";
+
+const WHISPER_RATE = 16000; // the sample rate the model wants
+const LIVE_FIRST_S = 2.2; // audio before the first live transcription pass
+const LIVE_CHUNK_S = 3.5; // audio per later live pass
+const LIVE_OVERLAP_S = 0.8; // re-listen to a little already-covered audio
+const MAX_RECORD_S = 60; // dictation stops by itself after this long
+const SILENT_PEAK = 0.006; // below this peak the recording counts as silence
 
 // The model is only needed for the fallback, so it is loaded on first use
 // (a separate bundle chunk, fetched lazily) and then kept in memory.
@@ -174,28 +184,154 @@ function loadWhisperModel(onProgress) {
   return whisperAsrPromise;
 }
 
-// Decode a MediaRecorder blob (webm/opus, ogg or mp4) and resample it to the
-// 16 kHz mono samples the Whisper pipeline expects.
-async function blobToWhisperAudio(blob) {
-  const bytes = await blob.arrayBuffer();
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  const ctx = new AudioCtx();
-  let decoded;
-  try {
-    decoded = await ctx.decodeAudioData(bytes);
-  } finally {
-    ctx.close?.();
+// Whisper hallucinates phrases like "[BLANK_AUDIO]" or "thank you" on silent
+// input - strip them before they ever reach the message box.
+function scrubTranscript(raw) {
+  return String(raw ?? "")
+    .replace(/\[[^\]]{0,40}\]/g, " ")
+    .replace(/\((?:silence|blank audio|inaudible|no speech)\)/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isNoiseTranscript(text) {
+  return (
+    !text ||
+    /^(you|thank you\.?|thanks for watching\.?|please subscribe\.?)$/i.test(text)
+  );
+}
+
+function peakOf(samples) {
+  let peak = 0;
+  for (let i = 0; i < samples.length; i += 1) {
+    const v = Math.abs(samples[i]);
+    if (v > peak) peak = v;
   }
-  const rate = 16000;
-  const length = Math.max(1, Math.ceil(decoded.duration * rate));
-  const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-  const off = new OfflineCtx(1, length, rate);
-  const source = off.createBufferSource();
-  source.buffer = decoded;
-  source.connect(off.destination);
-  source.start();
-  const rendered = await off.startRendering();
-  return rendered.getChannelData(0);
+  return peak;
+}
+
+// Join a transcript onto committed text, dropping words repeated across the
+// overlap between two live passes (e.g. "...what time | time is my session").
+function mergeTranscript(committed, addition) {
+  const a = committed.trim() ? committed.trim().split(/\s+/) : [];
+  const b = addition.trim() ? addition.trim().split(/\s+/) : [];
+  if (!a.length) return b.join(" ");
+  if (!b.length) return a.join(" ");
+  const max = Math.min(a.length, b.length, 12);
+  for (let k = max; k > 0; k -= 1) {
+    if (
+      a.slice(a.length - k).join(" ").toLowerCase() ===
+      b.slice(0, k).join(" ").toLowerCase()
+    ) {
+      return [...a, ...b.slice(k)].join(" ");
+    }
+  }
+  return [...a, ...b].join(" ");
+}
+
+// --- raw PCM capture: AudioWorklet when available, ScriptProcessor where not.
+// The worklet runs on the audio thread, so capture never stalls while Whisper
+// (wasm) is busy on the main thread - no dropped words mid-dictation.
+const CAPTURE_WORKLET_SOURCE = `
+class DictationCapture extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._buf = new Float32Array(2048);
+    this._n = 0;
+  }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0];
+    if (ch) {
+      for (let i = 0; i < ch.length; i += 1) {
+        this._buf[this._n++] = ch[i];
+        if (this._n === this._buf.length) {
+          this.port.postMessage(this._buf.slice(0));
+          this._n = 0;
+        }
+      }
+    }
+    return true;
+  }
+}
+registerProcessor("dictation-capture", DictationCapture);
+`;
+
+let captureWorkletUrl = null;
+function getCaptureWorkletUrl() {
+  if (!captureWorkletUrl) {
+    captureWorkletUrl = URL.createObjectURL(
+      new Blob([CAPTURE_WORKLET_SOURCE], { type: "application/javascript" })
+    );
+  }
+  return captureWorkletUrl;
+}
+
+// Returns a detach function that unhooks the tap again.
+async function attachPcmTap(ctx, sourceNode, onBlock) {
+  // The tap leads into a muted gain node - it exists only to pull audio
+  // through, never to be heard.
+  const silent = ctx.createGain();
+  silent.gain.value = 0;
+  if (ctx.audioWorklet) {
+    try {
+      await ctx.audioWorklet.addModule(getCaptureWorkletUrl());
+      const node = new AudioWorkletNode(ctx, "dictation-capture");
+      node.port.onmessage = (e) => onBlock(e.data);
+      sourceNode.connect(node);
+      node.connect(silent);
+      silent.connect(ctx.destination);
+      return () => {
+        node.port.onmessage = null;
+        try {
+          sourceNode.disconnect(node);
+          node.disconnect(silent);
+          silent.disconnect();
+        } catch {
+          /* already detached */
+        }
+      };
+    } catch (err) {
+      console.info(
+        "[attendance-bot] AudioWorklet capture unavailable, using ScriptProcessor:",
+        err
+      );
+    }
+  }
+  const node = ctx.createScriptProcessor(4096, 1, 1);
+  node.onaudioprocess = (e) =>
+    onBlock(new Float32Array(e.inputBuffer.getChannelData(0)));
+  sourceNode.connect(node);
+  node.connect(silent);
+  silent.connect(ctx.destination);
+  return () => {
+    node.onaudioprocess = null;
+    try {
+      sourceNode.disconnect(node);
+      node.disconnect(silent);
+      silent.disconnect();
+    } catch {
+      /* already detached */
+    }
+  };
+}
+
+// Box-average decimation - a cheap anti-alias filter. Only needed when the
+// AudioContext refuses the 16 kHz it is created with.
+function downsample16k(raw, ratio) {
+  const outLen = Math.max(1, Math.floor(raw.length / ratio));
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i += 1) {
+    const start = i * ratio;
+    const end = Math.min(raw.length, start + ratio);
+    let sum = 0;
+    let n = 0;
+    for (let j = Math.floor(start); j < end; j += 1) {
+      sum += raw[j];
+      n += 1;
+    }
+    out[i] = n ? sum / n : 0;
+  }
+  return out;
 }
 
 // The bot's replies use **bold** - render just that bit of markdown.
@@ -274,6 +410,7 @@ export default function App() {
   const [speechHint, setSpeechHint] = useState("");
   const recognitionRef = useRef(null);
   const speechActiveRef = useRef(false); // recognition is running / may write
+  const wantListenRef = useRef(false); // the user wants dictation to continue
   const speechBaseRef = useRef(""); // text already typed when the mic starts
   const speechHintTimerRef = useRef(null);
   // "browser" = built-in speech service, "whisper" = on-device model,
@@ -283,12 +420,27 @@ export default function App() {
   );
   const [transcribing, setTranscribing] = useState(false);
   const watchdogRef = useRef(null);
-  const recorderRef = useRef(null);
-  const recordChunksRef = useRef([]);
-  const recordStreamRef = useRef(null);
+  // Built-in recognition: text committed across the sessions the service
+  // ends on its own (dictation restarts to keep listening until stopped).
+  const committedRef = useRef(""); // final text of sessions that already ended
+  const sessionFinalRef = useRef(""); // final results of the running session
+  const sessionInterimRef = useRef(""); // interim words of the running session
+  const sawSpeechEventRef = useRef(false); // did the recognizer ever react?
+  const noSignalRestartsRef = useRef(0); // restarts with no transcript yet
+  const permPollRef = useRef(null); // watches for a dead speech service
+  // On-device model: raw PCM capture + live transcription passes.
+  const capDetachRef = useRef(null); // unhooks the PCM tap
+  const capBlocksRef = useRef([]); // Float32Array blocks at the context rate
+  const capRateRef = useRef(WHISPER_RATE);
+  const capStreamRef = useRef(null); // the microphone stream being captured
+  const recordingRef = useRef(false); // on-device capture running?
+  const liveTextRef = useRef(""); // transcript of the live passes so far
+  const liveCoveredRef = useRef(0); // 16 kHz samples already live-transcribed
+  const liveBusyRef = useRef(false); // one live pass at a time
+  const liveStaleRef = useRef(false); // stop/final pass owns the box now
   const recordTimerRef = useRef(null);
   const levelTimerRef = useRef(null); // watches the mic level while recording
-  const audioCtxRef = useRef(null); // analyser context for that watchdog
+  const audioCtxRef = useRef(null); // the mic AudioContext (analyser + capture)
   const heardRef = useRef(false); // did any audible sound arrive?
   const micWarnedRef = useRef(false); // "not hearing anything" hint shown?
 
@@ -326,15 +478,38 @@ export default function App() {
     speechHintTimerRef.current = setTimeout(() => setSpeechHint(""), 6000);
   }
 
-  // stop() throws when the recognizer is not running - a no-op for us.
+  function basePlus(text) {
+    const base = speechBaseRef.current;
+    return base ? `${base} ${text}` : text;
+  }
+
+  // Everything dictated so far: what was already typed + finals from ended
+  // sessions + the running session's final and interim words.
+  function composeSpeechText() {
+    return [
+      speechBaseRef.current,
+      committedRef.current,
+      sessionFinalRef.current,
+      sessionInterimRef.current,
+    ]
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  // Ends any running dictation: the built-in recognizer and the on-device
+  // capture. stop() throws when the recognizer is not running - a no-op.
   function stopListening() {
     speechActiveRef.current = false; // late results must not rewrite the box
+    wantListenRef.current = false;
     clearTimeout(watchdogRef.current);
+    clearInterval(permPollRef.current);
     try {
       recognitionRef.current?.stop();
     } catch {
       /* not running */
     }
+    if (recordingRef.current) stopWhisperRecording();
   }
 
   // Switch to the on-device model (Opera GX ships a speech API that never
@@ -350,74 +525,192 @@ export default function App() {
     if (message) showSpeechHint(message);
   }
 
-  // Some Chromium builds expose the speech API but a start() never produces a
-  // single event: give the service a moment once the microphone is already
-  // allowed (a permission prompt is its own UI and takes its time).
-  function armSpeechWatchdog() {
-    const arm = (state) => {
-      if (state !== "granted") return;
-      clearTimeout(watchdogRef.current);
-      watchdogRef.current = setTimeout(() => {
-        if (!speechActiveRef.current) return;
-        speechActiveRef.current = false;
-        try {
-          recognitionRef.current?.abort();
-        } catch {
-          /* not running */
-        }
-        setListening(false);
-        useWhisper(
-          "This browser's speech service isn't available - switched to on-device voice. Tap the mic and speak."
-        );
-      }, 2500);
-    };
+  // Some Chromium builds expose the speech API but start() never produces a
+  // single event. Once the microphone is allowed (a permission prompt is its
+  // own UI and takes its time), give the service a moment and switch to the
+  // on-device model if nothing at all happens.
+  function pollForDeadSpeechService() {
+    clearInterval(permPollRef.current);
+    const startedAt = Date.now();
+    permPollRef.current = setInterval(() => {
+      if (
+        !speechActiveRef.current ||
+        sawSpeechEventRef.current ||
+        Date.now() - startedAt > 25000
+      ) {
+        clearInterval(permPollRef.current);
+        return;
+      }
+      navigator.permissions
+        ?.query?.({ name: "microphone" })
+        .then((p) => {
+          if (
+            p?.state !== "granted" ||
+            sawSpeechEventRef.current ||
+            !speechActiveRef.current
+          ) {
+            return;
+          }
+          clearInterval(permPollRef.current);
+          clearTimeout(watchdogRef.current);
+          watchdogRef.current = setTimeout(() => {
+            if (!speechActiveRef.current || sawSpeechEventRef.current) return;
+            speechActiveRef.current = false;
+            wantListenRef.current = false;
+            try {
+              recognitionRef.current?.abort();
+            } catch {
+              /* not running */
+            }
+            setListening(false);
+            useWhisper(
+              "This browser's speech service isn't available - switched to on-device voice. Tap the mic and speak."
+            );
+          }, 2500);
+        }, () => {});
+    }, 800);
+  }
+
+  // --- on-device capture: raw PCM in, live transcript out ------------------
+
+  function rawLength() {
+    let n = 0;
+    for (const block of capBlocksRef.current) n += block.length;
+    return n;
+  }
+
+  function total16k() {
+    return Math.floor(rawLength() / (capRateRef.current / WHISPER_RATE));
+  }
+
+  // Copy [startRaw, endRaw) out of the captured blocks.
+  function gatherRaw(startRaw, endRaw) {
+    const out = new Float32Array(Math.max(0, endRaw - startRaw));
+    let blockStart = 0;
+    let offset = 0;
+    for (const block of capBlocksRef.current) {
+      const blockEnd = blockStart + block.length;
+      if (blockEnd > startRaw && blockStart < endRaw) {
+        const from = Math.max(0, startRaw - blockStart);
+        const to = Math.min(block.length, endRaw - blockStart);
+        out.set(block.subarray(from, to), offset);
+        offset += to - from;
+      }
+      blockStart = blockEnd;
+      if (blockStart >= endRaw) break;
+    }
+    return out.subarray(0, offset);
+  }
+
+  // A slice of the recording at the 16 kHz the model works in.
+  function slice16k(start16, end16) {
+    const rate = capRateRef.current;
+    if (rate === WHISPER_RATE) return gatherRaw(start16, end16);
+    const ratio = rate / WHISPER_RATE;
+    return downsample16k(
+      gatherRaw(Math.floor(start16 * ratio), Math.ceil(end16 * ratio)),
+      ratio
+    );
+  }
+
+  function releaseCapture() {
+    recordingRef.current = false;
+    liveStaleRef.current = true;
+    if (capDetachRef.current) {
+      try {
+        capDetachRef.current();
+      } catch {
+        /* already detached */
+      }
+      capDetachRef.current = null;
+    }
+    if (capStreamRef.current) {
+      capStreamRef.current.getTracks().forEach((t) => t.stop());
+      capStreamRef.current = null;
+    }
+    closeLevelCtx(); // closes the shared microphone AudioContext
+  }
+
+  // Transcribe ~3 s slices while the user is still speaking, so words stream
+  // into the box (ChatGPT-style dictation). Passes run one at a time; when
+  // the model is slower than real time the slices simply get bigger, and the
+  // final pass at stop replaces the live text with one clean transcript.
+  async function pumpLiveTranscription() {
+    if (liveBusyRef.current) return;
+    liveBusyRef.current = true;
     try {
-      navigator.permissions?.query?.({ name: "microphone" }).then(
-        (p) => arm(p?.state),
-        () => {}
-      );
-    } catch {
-      /* Permissions API unsupported - the error handler covers it */
+      while (recordingRef.current && !liveStaleRef.current) {
+        const asr = await loadWhisperModel().catch(() => null);
+        if (!asr) {
+          showSpeechHint(
+            "Voice transcription didn't work - check your connection and try again."
+          );
+          return;
+        }
+        if (!recordingRef.current || liveStaleRef.current) return;
+        const end = total16k();
+        const covered = liveCoveredRef.current;
+        const need =
+          (covered === 0 ? LIVE_FIRST_S : LIVE_CHUNK_S) * WHISPER_RATE;
+        if (end - covered < need) {
+          await new Promise((r) => setTimeout(r, 200));
+          continue;
+        }
+        const from = Math.max(0, covered - LIVE_OVERLAP_S * WHISPER_RATE);
+        const samples = slice16k(from, end);
+        liveCoveredRef.current = end;
+        // Nothing audible in this slice: skip it - Whisper only hallucinates
+        // on silence, and the pass costs real compute.
+        if (peakOf(samples) < SILENT_PEAK) continue;
+        let text = "";
+        try {
+          const result = await asr(samples);
+          text = scrubTranscript(result?.text);
+        } catch (err) {
+          console.info("[attendance-bot] live transcription pass failed:", err);
+        }
+        if (!recordingRef.current || liveStaleRef.current) return;
+        if (text && !isNoiseTranscript(text)) {
+          liveTextRef.current = mergeTranscript(liveTextRef.current, text);
+          setInput(basePlus(liveTextRef.current));
+        }
+      }
+    } finally {
+      liveBusyRef.current = false;
     }
   }
 
   async function startWhisperRecording() {
-    if (transcribing) return;
+    if (transcribing || recordingRef.current) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const types = [
-        "audio/webm;codecs=opus",
-        "audio/webm",
-        "audio/ogg;codecs=opus",
-        "audio/mp4",
-      ];
-      const mimeType =
-        typeof MediaRecorder.isTypeSupported === "function"
-          ? types.find((t) => MediaRecorder.isTypeSupported(t))
-          : undefined;
-      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      recorderRef.current = rec;
-      recordChunksRef.current = [];
-      rec.ondataavailable = (e) => {
-        if (e.data && e.data.size) recordChunksRef.current.push(e.data);
-      };
-      rec.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        recordStreamRef.current = null;
-        transcribeRecording(
-          new Blob(recordChunksRef.current, { type: rec.mimeType || "audio/webm" })
-        );
-      };
-      recordStreamRef.current = stream;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      // Ask for 16 kHz up front - the context resamples the microphone
+      // stream for us, exactly the rate the model wants.
+      const ctx = new AudioCtx({ sampleRate: WHISPER_RATE });
+      if (ctx.state === "suspended" && ctx.resume) ctx.resume();
+      const source = ctx.createMediaStreamSource(stream);
+      audioCtxRef.current = ctx;
+      capRateRef.current = ctx.sampleRate || WHISPER_RATE;
+      capBlocksRef.current = [];
+      capStreamRef.current = stream;
+      liveTextRef.current = "";
+      liveCoveredRef.current = 0;
+      liveStaleRef.current = false;
+      recordingRef.current = true;
       speechBaseRef.current = input.trim();
+
+      // Capture off the audio thread so Whisper's work on the main thread
+      // never drops words.
+      capDetachRef.current = await attachPcmTap(ctx, source, (block) => {
+        if (recordingRef.current) capBlocksRef.current.push(block);
+      });
+
       // Watch the input level: tell the user while recording when the
       // microphone delivers nothing (muted, off or the wrong device).
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const actx = new AudioCtx();
-      const analyser = actx.createAnalyser();
+      const analyser = ctx.createAnalyser();
       analyser.fftSize = 2048;
-      actx.createMediaStreamSource(stream).connect(analyser);
-      audioCtxRef.current = actx;
+      source.connect(analyser);
       heardRef.current = false;
       micWarnedRef.current = false;
       const levelBuf = new Float32Array(analyser.fftSize);
@@ -448,6 +741,7 @@ export default function App() {
           );
         }
       }, 300);
+
       // Fetch and warm up the small speech model while the user speaks.
       loadWhisperModel((pct) =>
         showSpeechHint(
@@ -456,11 +750,13 @@ export default function App() {
             : `Downloading the on-device speech model… ${pct}%`
         )
       ).catch(() => {});
-      rec.start();
+      pumpLiveTranscription();
+
       setListening(true);
       clearTimeout(recordTimerRef.current);
-      recordTimerRef.current = setTimeout(stopWhisperRecording, 30000);
+      recordTimerRef.current = setTimeout(stopWhisperRecording, MAX_RECORD_S * 1000);
     } catch (err) {
+      releaseCapture();
       showSpeechHint(
         err?.name === "NotAllowedError"
           ? "Microphone access is blocked - allow it for this site in your browser and try again."
@@ -470,13 +766,62 @@ export default function App() {
   }
 
   function stopWhisperRecording() {
+    if (!recordingRef.current) return;
     clearTimeout(recordTimerRef.current);
     clearInterval(levelTimerRef.current);
-    closeLevelCtx();
-    const rec = recorderRef.current;
-    recorderRef.current = null;
-    if (rec && rec.state !== "inactive") rec.stop(); // -> transcribeRecording
+    releaseCapture();
     setListening(false);
+    finalizeRecording();
+  }
+
+  // The final pass over the whole recording: replaces whatever the live
+  // passes produced with one clean transcript of the full audio.
+  async function finalizeRecording() {
+    const samples = slice16k(0, total16k());
+    if (!samples.length) {
+      showSpeechHint("I didn't hear anything - tap the mic and try again.");
+      return;
+    }
+    const peak = peakOf(samples);
+    console.info("[attendance-bot] voice recording level (peak):", peak.toFixed(4));
+    if (peak < SILENT_PEAK) {
+      showSpeechHint(
+        "I didn't hear anything - check your microphone is on and unmuted."
+      );
+      return;
+    }
+    setTranscribing(true);
+    showSpeechHint("Transcribing…");
+    try {
+      // Lift quiet recordings (low-gain microphones) before transcription.
+      if (peak < 0.5) {
+        const gain = Math.min(0.9 / peak, 20);
+        for (let i = 0; i < samples.length; i += 1) samples[i] *= gain;
+      }
+      const asr = await loadWhisperModel((pct) =>
+        showSpeechHint(`Downloading the on-device speech model… ${pct}%`)
+      );
+      const options =
+        samples.length > 25 * WHISPER_RATE
+          ? { chunk_length_s: 30, stride_length_s: 5 }
+          : undefined;
+      const result = await asr(samples, options);
+      const text = scrubTranscript(result?.text);
+      if (isNoiseTranscript(text)) {
+        showSpeechHint("I didn't hear anything - tap the mic and try again.");
+        return;
+      }
+      setInput(basePlus(text));
+      clearTimeout(speechHintTimerRef.current);
+      setSpeechHint("");
+    } catch (err) {
+      console.warn("[attendance-bot] on-device transcription failed:", err);
+      showSpeechHint(
+        "Voice transcription didn't work - check your connection and try again."
+      );
+    } finally {
+      setTranscribing(false);
+    }
   }
 
   function closeLevelCtx() {
@@ -490,61 +835,23 @@ export default function App() {
     audioCtxRef.current = null;
   }
 
-  async function transcribeRecording(blob) {
-    if (!blob.size) {
-      showSpeechHint("I didn't hear anything - tap the mic and try again.");
+  function beginBrowserDictation() {
+    speechBaseRef.current = input.trim();
+    committedRef.current = "";
+    sessionFinalRef.current = "";
+    sessionInterimRef.current = "";
+    noSignalRestartsRef.current = 0;
+    sawSpeechEventRef.current = false;
+    speechActiveRef.current = true;
+    wantListenRef.current = true;
+    try {
+      recognitionRef.current.start();
+    } catch {
+      speechActiveRef.current = false;
+      wantListenRef.current = false;
       return;
     }
-    setTranscribing(true);
-    showSpeechHint("Transcribing…");
-    try {
-      const samples = await blobToWhisperAudio(blob);
-      // Recordings with no audible signal at all (muted or disconnected
-      // microphone) only make Whisper hallucinate - never guess on those.
-      let peak = 0;
-      for (let i = 0; i < samples.length; i += 1) {
-        peak = Math.max(peak, Math.abs(samples[i]));
-      }
-      console.info("[attendance-bot] voice recording level (peak):", peak.toFixed(4));
-      if (peak < 0.006) {
-        showSpeechHint(
-          "I didn't hear anything - check your microphone is on and unmuted."
-        );
-        return;
-      }
-      // Lift quiet recordings (low-gain microphones) before transcription.
-      if (peak < 0.5) {
-        const gain = Math.min(0.9 / peak, 20);
-        for (let i = 0; i < samples.length; i += 1) samples[i] *= gain;
-      }
-      const asr = await loadWhisperModel();
-      const result = await asr(samples);
-      const text = String(result?.text ?? "")
-        // Drop bracketed annotations ("[BLANK_AUDIO]", "[ Silence ]", ...):
-        // those are hallucinations produced for silent input.
-        .replace(/\[[^\]]{0,40}\]/g, " ")
-        .replace(/\((?:silence|blank audio|inaudible|no speech)\)/gi, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-      if (
-        !text ||
-        /^(you|thank you\.?|thanks for watching\.?|please subscribe\.?)$/i.test(text)
-      ) {
-        showSpeechHint("I didn't hear anything - tap the mic and try again.");
-        return;
-      }
-      const base = speechBaseRef.current;
-      setInput(base ? `${base} ${text}` : text);
-      clearTimeout(speechHintTimerRef.current);
-      setSpeechHint("");
-    } catch (err) {
-      console.warn("[attendance-bot] on-device transcription failed:", err);
-      showSpeechHint(
-        "Voice transcription didn't work - check your connection and try again."
-      );
-    } finally {
-      setTranscribing(false);
-    }
+    pollForDeadSpeechService();
   }
 
   function toggleListening() {
@@ -560,15 +867,7 @@ export default function App() {
       return;
     }
     if (!recognitionRef.current || busy) return;
-    speechBaseRef.current = input.trim();
-    speechActiveRef.current = true;
-    try {
-      recognitionRef.current.start();
-      armSpeechWatchdog();
-    } catch {
-      speechActiveRef.current = false;
-      /* already running */
-    }
+    beginBrowserDictation();
   }
 
   useEffect(() => {
@@ -576,39 +875,45 @@ export default function App() {
     const rec = new SpeechRecognitionClass();
     rec.lang = SPEECH_LANG;
     rec.interimResults = true; // stream words into the box while speaking
-    rec.continuous = false; // one utterance per tap
+    rec.continuous = true; // keep dictating until the mic is tapped again
     rec.maxAlternatives = 1;
 
     rec.onstart = () => {
+      sawSpeechEventRef.current = true;
       clearTimeout(watchdogRef.current);
       setListening(true);
     };
     rec.onresult = (event) => {
       if (!speechActiveRef.current) return;
+      sawSpeechEventRef.current = true;
+      noSignalRestartsRef.current = 0;
       let finalText = "";
       let interimText = "";
       for (const result of event.results) {
         if (result.isFinal) finalText += result[0].transcript;
         else interimText += result[0].transcript;
       }
-      const spoken = `${finalText} ${interimText}`.replace(/\s+/g, " ").trim();
-      const base = speechBaseRef.current;
-      setInput(spoken ? (base ? `${base} ${spoken}` : spoken) : base);
+      sessionFinalRef.current = finalText;
+      sessionInterimRef.current = interimText;
+      setInput(composeSpeechText());
     };
     rec.onerror = (event) => {
+      sawSpeechEventRef.current = true;
       if (event.error === "aborted") return; // we stopped it on purpose
       clearTimeout(watchdogRef.current);
       if (event.error === "network" || event.error === "service-not-allowed") {
+        wantListenRef.current = false;
         // The built-in service is unreachable here - use the on-device model.
         useWhisper(
           "This browser's speech service isn't available - switched to on-device voice. Tap the mic and speak."
         );
         return;
       }
+      if (event.error === "no-speech") return; // silence; onend restarts it
+      wantListenRef.current = false; // fatal: mic blocked or no device
       const hints = {
         "not-allowed":
           "Microphone access is blocked - allow it for this site in your browser and try again.",
-        "no-speech": "I didn't hear anything - tap the mic and try again.",
         "audio-capture": "No microphone was found on this device.",
       };
       showSpeechHint(
@@ -616,8 +921,35 @@ export default function App() {
       );
     };
     rec.onend = () => {
-      speechActiveRef.current = false;
       clearTimeout(watchdogRef.current);
+      if (wantListenRef.current && speechActiveRef.current) {
+        // The service ends a session on its own after a pause - keep the
+        // text so far and start a fresh session so dictation continues.
+        noSignalRestartsRef.current += 1;
+        if (noSignalRestartsRef.current > 20) {
+          speechActiveRef.current = false;
+          wantListenRef.current = false;
+          setListening(false);
+          showSpeechHint("I didn't hear anything - tap the mic and try again.");
+          return;
+        }
+        committedRef.current = [committedRef.current, sessionFinalRef.current]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        sessionFinalRef.current = "";
+        sessionInterimRef.current = "";
+        setInput(composeSpeechText());
+        try {
+          rec.start();
+        } catch {
+          speechActiveRef.current = false;
+          wantListenRef.current = false;
+          setListening(false);
+        }
+        return;
+      }
+      speechActiveRef.current = false;
       setListening(false);
     };
     recognitionRef.current = rec;
@@ -630,8 +962,23 @@ export default function App() {
       }
       recognitionRef.current = null;
       clearTimeout(watchdogRef.current);
+      clearInterval(permPollRef.current);
       clearTimeout(speechHintTimerRef.current);
       clearInterval(levelTimerRef.current);
+      liveStaleRef.current = true;
+      recordingRef.current = false;
+      if (capDetachRef.current) {
+        try {
+          capDetachRef.current();
+        } catch {
+          /* already detached */
+        }
+        capDetachRef.current = null;
+      }
+      if (capStreamRef.current) {
+        capStreamRef.current.getTracks().forEach((t) => t.stop());
+        capStreamRef.current = null;
+      }
       closeLevelCtx();
     };
   }, []);
