@@ -128,6 +128,14 @@ const AUTH_URL =
     ? import.meta.env.VITE_RASA_URL.replace(/\/webhooks\/rest\/webhook\/?$/, "")
     : "/api") + "/auth/login");
 
+// Voice input uses the browser's built-in speech recognition (Chrome, Edge
+// and Safari ship it; Firefox does not, so the mic button stays hidden
+// there). The transcript streams into the message box for review; English by
+// default, adjustable at build time via VITE_SPEECH_LANG (e.g. "en-GB").
+const SpeechRecognitionClass =
+  window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const SPEECH_LANG = import.meta.env.VITE_SPEECH_LANG ?? "en-US";
+
 // The bot's replies use **bold** - render just that bit of markdown.
 function RichText({ text }) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
@@ -199,6 +207,14 @@ export default function App() {
   // student on record. `null` means nothing is pending.
   const pendingIntroRef = useRef(null);
 
+  // --- voice input state ---
+  const [listening, setListening] = useState(false);
+  const [speechHint, setSpeechHint] = useState("");
+  const recognitionRef = useRef(null);
+  const speechActiveRef = useRef(false); // recognition is running / may write
+  const speechBaseRef = useRef(""); // text already typed when the mic starts
+  const speechHintTimerRef = useRef(null);
+
   const quickReplies = BASE_REPLIES;
   const showQuickReplies =
     user && !busy && messages[messages.length - 1]?.from === "bot";
@@ -226,6 +242,92 @@ export default function App() {
     };
   }, [menuOpen]);
 
+  // --- voice input (browser SpeechRecognition; English) ---
+  function showSpeechHint(message) {
+    setSpeechHint(message);
+    clearTimeout(speechHintTimerRef.current);
+    speechHintTimerRef.current = setTimeout(() => setSpeechHint(""), 6000);
+  }
+
+  // stop() throws when the recognizer is not running - a no-op for us.
+  function stopListening() {
+    speechActiveRef.current = false; // late results must not rewrite the box
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      /* not running */
+    }
+  }
+
+  function toggleListening() {
+    if (listening) {
+      stopListening();
+      return;
+    }
+    if (!recognitionRef.current || busy) return;
+    speechBaseRef.current = input.trim();
+    speechActiveRef.current = true;
+    try {
+      recognitionRef.current.start();
+    } catch {
+      speechActiveRef.current = false;
+      /* already running */
+    }
+  }
+
+  useEffect(() => {
+    if (!SpeechRecognitionClass) return;
+    const rec = new SpeechRecognitionClass();
+    rec.lang = SPEECH_LANG;
+    rec.interimResults = true; // stream words into the box while speaking
+    rec.continuous = false; // one utterance per tap
+    rec.maxAlternatives = 1;
+
+    rec.onstart = () => setListening(true);
+    rec.onresult = (event) => {
+      if (!speechActiveRef.current) return;
+      let finalText = "";
+      let interimText = "";
+      for (const result of event.results) {
+        if (result.isFinal) finalText += result[0].transcript;
+        else interimText += result[0].transcript;
+      }
+      const spoken = `${finalText} ${interimText}`.replace(/\s+/g, " ").trim();
+      const base = speechBaseRef.current;
+      setInput(spoken ? (base ? `${base} ${spoken}` : spoken) : base);
+    };
+    rec.onerror = (event) => {
+      if (event.error === "aborted") return; // we stopped it on purpose
+      const hints = {
+        "not-allowed":
+          "Microphone access is blocked - allow it for this site in your browser and try again.",
+        "service-not-allowed": "Speech recognition is blocked in this browser.",
+        "no-speech": "I didn't hear anything - tap the mic and try again.",
+        "audio-capture": "No microphone was found on this device.",
+        network:
+          "Speech recognition needs a network connection - check it and try again.",
+      };
+      showSpeechHint(
+        hints[event.error] || "Voice input didn't work - please try again."
+      );
+    };
+    rec.onend = () => {
+      speechActiveRef.current = false;
+      setListening(false);
+    };
+    recognitionRef.current = rec;
+    return () => {
+      rec.onend = null; // no state updates after unmount
+      try {
+        rec.abort();
+      } catch {
+        /* not running */
+      }
+      recognitionRef.current = null;
+      clearTimeout(speechHintTimerRef.current);
+    };
+  }, []);
+
   // One chat turn. `hidden` skips the user bubble (the login screen sends
   // the introduction silently); `sender` overrides the conversation id (a
   // brand-new conversation still belongs to the signed-in student).
@@ -235,6 +337,7 @@ export default function App() {
   ) {
     const message = raw.trim();
     if (!message || busy) return;
+    stopListening(); // sending ends dictation
     setMenuOpen(false);
     const activeSender = senderOverride ?? sender;
 
@@ -367,6 +470,8 @@ export default function App() {
 
   function logout() {
     setMenuOpen(false);
+    stopListening();
+    setSpeechHint("");
     sessionStorage.removeItem(K_USER);
     setUser(null);
     setLoginError("");
@@ -393,6 +498,8 @@ export default function App() {
 
   function newConversation() {
     setMenuOpen(false);
+    stopListening();
+    setSpeechHint("");
     const id = newSenderId();
     localStorage.setItem(K_SENDER, id);
     setSender(id);
@@ -714,14 +821,47 @@ export default function App() {
                   <div ref={bottomRef} />
                 </div>
 
+                {speechHint && (
+                  <p className="speech-hint" role="status">
+                    <i className="fa-solid fa-circle-info" aria-hidden="true" />
+                    {speechHint}
+                  </p>
+                )}
+
                 <form className="composer" onSubmit={onSubmit}>
                   <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Message"
+                    placeholder={listening ? "Listening…" : "Message"}
                     aria-label="Message"
                     autoFocus
                   />
+                  {SpeechRecognitionClass && (
+                    <button
+                      type="button"
+                      className={`mic-btn${listening ? " listening" : ""}`}
+                      aria-label={
+                        listening
+                          ? "Stop voice input"
+                          : "Speak your question (English)"
+                      }
+                      aria-pressed={listening}
+                      title={
+                        listening
+                          ? "Stop listening"
+                          : "Speak your question (English)"
+                      }
+                      onClick={toggleListening}
+                      disabled={busy}
+                    >
+                      <i
+                        className={`fa-solid ${
+                          listening ? "fa-microphone-lines" : "fa-microphone"
+                        }`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  )}
                   <button
                     type="submit"
                     className="send-btn"

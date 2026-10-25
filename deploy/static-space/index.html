@@ -130,6 +130,8 @@
 
             <div id="quick" class="quick" aria-label="Quick replies"></div>
 
+            <p id="speechHint" class="speech-hint" role="status" hidden></p>
+
             <form id="chatForm" class="composer" autocomplete="off">
               <input
                 id="chatInput"
@@ -137,6 +139,17 @@
                 placeholder='Try "What days do I have lectures?" or "What room am I in?"'
                 aria-label="Message"
               />
+              <button
+                id="micBtn"
+                type="button"
+                class="mic-btn"
+                aria-label="Speak your question (English)"
+                aria-pressed="false"
+                title="Speak your question (English)"
+                hidden
+              >
+                🎤
+              </button>
               <button id="sendBtn" type="submit" class="send-btn">Send</button>
             </form>
           </div>
