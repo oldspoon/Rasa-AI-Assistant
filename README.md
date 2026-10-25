@@ -1,4 +1,4 @@
-# Octopi — Rasa Attendance Bot
+# Octopi — Octopi Chatbot
 
 A campus assistant that knows when your lectures are. Sign in, ask "where is my
 practical on Thursday?", get an answer. Under the hood it's the whole loop, not
