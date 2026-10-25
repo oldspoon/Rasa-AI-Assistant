@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { AUTH_URL } from "../endpoints.js";
+import { AUTH_URL, LOGOUT_URL } from "../endpoints.js";
 import { checkCredentials } from "../demo/demoEngine.js";
-import { clearStoredUser, storeUser } from "../storage/session.js";
+import { clearStoredUser, readStoredUser, storeUser } from "../storage/session.js";
 import { clearTranscripts } from "../storage/transcriptLog.js";
 
 // Student sign-in form and sign-out.
@@ -76,7 +76,17 @@ export function useAuth({ setUser, setInput, chat, voice, closeMenu }) {
     setLoginError("Your session has expired. Please sign in again.");
   }
 
+  // Tell the server to drop the token. Best effort: signing off never waits on it.
+  function revokeOnServer() {
+    const token = readStoredUser()?.token;
+    if (!token) return;
+    fetch(LOGOUT_URL, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(
+      () => {}
+    );
+  }
+
   function logout() {
+    revokeOnServer();
     clearTranscripts();
     closeMenu();
     voice.stopListening();

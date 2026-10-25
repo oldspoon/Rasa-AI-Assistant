@@ -36,3 +36,35 @@
   text-transform: uppercase;
 }
 
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.signoff-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid #48484a;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--topbar-text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.signoff-btn:hover:not(:disabled) {
+  background: var(--topbar-hover);
+}
+
+.signoff-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
