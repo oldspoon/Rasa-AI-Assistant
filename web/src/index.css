@@ -1,0 +1,105 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, "Segoe UI", sans-serif;
+  background: #eef1f5;
+  color: #1c2530;
+  display: flex;
+  justify-content: center;
+}
+
+.chat {
+  width: min(640px, 100vw);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  padding: 18px 20px 12px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+header p {
+  margin: 4px 0 0;
+  color: #667085;
+  font-size: 0.85rem;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px;
+}
+
+.bubble {
+  max-width: 85%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+  font-size: 0.95rem;
+}
+
+.bubble.bot {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid #dde3ea;
+  border-bottom-left-radius: 4px;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: #2e6ef7;
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.bubble.typing {
+  color: #8894a3;
+  font-style: italic;
+}
+
+form {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px 20px;
+}
+
+form input {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1px solid #cdd6e0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+
+form input:focus {
+  outline: 2px solid #2e6ef7;
+  outline-offset: -1px;
+}
+
+form button {
+  padding: 11px 20px;
+  border: 0;
+  border-radius: 10px;
+  background: #2e6ef7;
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+form button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
