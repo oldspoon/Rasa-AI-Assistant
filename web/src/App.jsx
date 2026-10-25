@@ -57,8 +57,10 @@ function getSender() {
   return id;
 }
 
-// Relative URL - the Vite dev server proxies /api/* to Rasa on :5005.
-const WEBHOOK = "/api/webhooks/rest/webhook";
+// Relative URL by default - the Vite dev server proxies /api/* to Rasa on
+// :5005. A production build (e.g. on GitHub Pages) sets VITE_RASA_URL to the
+// public Rasa endpoint instead, since the dev proxy doesn't exist there.
+const WEBHOOK = import.meta.env.VITE_RASA_URL ?? "/api/webhooks/rest/webhook";
 
 // The bot's replies use **bold** - render just that bit of markdown.
 function RichText({ text }) {
