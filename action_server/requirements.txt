@@ -1,0 +1,12 @@
+# Action server dependencies - Rasa SDK only (no full Rasa install needed).
+#
+# Fresh setup (also done for you by: ./dev-run.sh --setup  or  .\dev-run.ps1 -Setup):
+#   python -m venv .venv
+#   .venv\Scripts\python -m pip install -r requirements.txt    (Windows)
+#   .venv/bin/python   -m pip install -r requirements.txt      (macOS/Linux)
+
+rasa-sdk==3.6.2
+
+# Rasa SDK 3.x imports `pkg_resources` at runtime; setuptools 81+ removed it.
+# Same pin as the Rasa project uses.
+setuptools<81
