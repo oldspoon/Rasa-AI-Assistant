@@ -70,8 +70,29 @@ def _fetch_parking_arrears(first_name: str, last_name: str) -> list | None:
         return None
 
 
+def _signed_in_name(tracker: Tracker) -> tuple[str, str] | None:
+    """The student the chat channel verified by login token, if any."""
+    metadata = (tracker.latest_message or {}).get("metadata") or {}
+    student = metadata.get("student") or {}
+    first, last = student.get("first_name"), student.get("last_name")
+    return (first, last) if first and last else None
+
+
+def _typed_name(tracker: Tracker) -> tuple[str, str]:
+    """Name the user typed in the latest message."""
+    names = {"first_name": "", "last_name": ""}
+    for ent in (tracker.latest_message or {}).get("entities", []) or []:
+        if ent.get("entity") in names:
+            names[ent["entity"]] = ent.get("value") or ""
+    return names["first_name"], names["last_name"]
+
+
 def _get_full_name(tracker: Tracker) -> tuple[str, str]:
-    """Name from slots, else from the latest message entities."""
+    """The signed-in student, else the name from slots or the latest message entities."""
+    signed_in = _signed_in_name(tracker)
+    if signed_in:
+        return signed_in
+
     first = tracker.get_slot("first_name") or ""
     last  = tracker.get_slot("last_name")  or ""
 
@@ -169,6 +190,19 @@ class ActionLookupStudent(Action):
         if not first_name or not last_name:
             dispatcher.utter_message(response="utter_ask_name")
             return []
+
+        if _signed_in_name(tracker):
+            typed_first, typed_last = _typed_name(tracker)
+            if (typed_first and typed_first.lower() != first_name.lower()) or (
+                typed_last and typed_last.lower() != last_name.lower()
+            ):
+                dispatcher.utter_message(
+                    text=(
+                        f"You are signed in as {first_name} {last_name}, so I can "
+                        f"only show your own schedule."
+                    )
+                )
+                return [SlotSet("first_name", first_name), SlotSet("last_name", last_name)]
 
         logger.info("Looking up student: %s %s", first_name, last_name)
         row = _fetch_student(first_name, last_name)
