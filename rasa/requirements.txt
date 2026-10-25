@@ -1,6 +1,6 @@
 # Rasa project dependencies - Python 3.10 required (Rasa 3.6.x supports 3.8-3.10).
 #
-# Fresh setup (also done for you by: ./dev-run.sh --setup  or  .\dev-run.ps1 -Setup):
+# Fresh setup (also done for you by: ./dev-run.sh --setup):
 #   py -3.10 -m venv .venv
 #   .venv\Scripts\python -m pip install -r requirements.txt    (Windows)
 #   .venv/bin/python   -m pip install -r requirements.txt      (macOS/Linux)

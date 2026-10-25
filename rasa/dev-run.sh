@@ -15,9 +15,12 @@
 # The action server (../action_server) must be running for the custom actions
 # to work - endpoints.yml points at http://localhost:5055/webhook.
 #
-# On Windows, run this with Git Bash, or use .\dev-run.ps1 instead.
+# On Windows, run this with Git Bash.
 # =============================================================================
 set -euo pipefail
+
+# Keep Rasa's emoji/box output from crashing on legacy Windows code pages
+export PYTHONUTF8=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"

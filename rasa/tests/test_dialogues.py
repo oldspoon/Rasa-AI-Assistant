@@ -61,7 +61,7 @@ def _servers_must_be_running() -> None:
             pytest.fail(
                 f"{label} is not reachable at {url}.\n"
                 "Start both servers before running the dialogue tests:\n"
-                "  cd action_server && ./dev-run.sh -r   (or .\\dev-run.ps1 -r)\n"
+                "  cd action_server && ./dev-run.sh -r\n"
                 "  cd rasa         && ./dev-run.sh -r"
             )
 
