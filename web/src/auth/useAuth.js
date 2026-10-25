@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AUTH_URL } from "../endpoints.js";
 import { checkCredentials } from "../demo/demoEngine.js";
 import { clearStoredUser, storeUser } from "../storage/session.js";
+import { clearTranscripts } from "../storage/transcriptLog.js";
 
 // Student sign-in form and sign-out.
 // Sign-in checks the server first, then the offline demo accounts.
@@ -76,6 +77,7 @@ export function useAuth({ setUser, setInput, chat, voice, closeMenu }) {
   }
 
   function logout() {
+    clearTranscripts();
     closeMenu();
     voice.stopListening();
     voice.clearSpeechHint();

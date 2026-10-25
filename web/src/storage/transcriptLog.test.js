@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeStorage } from "./fakeStorage.js";
-import { trackTurn } from "./transcriptLog.js";
+import { clearTranscripts, trackTurn } from "./transcriptLog.js";
 
 const KEY = (sender) => `attendance-bot-log-${sender}`;
 const readLog = (sender) => JSON.parse(localStorage.getItem(KEY(sender)));
@@ -58,5 +58,17 @@ describe("trackTurn", () => {
       },
     });
     expect(() => trackTurn("s1", "user", "hello")).not.toThrow();
+  });
+});
+
+describe("clearTranscripts", () => {
+  it("removes every saved transcript but nothing else", () => {
+    trackTurn("s1", "user", "hello");
+    trackTurn("s2", "user", "hi");
+    localStorage.setItem("attendance-bot-theme", "dark");
+    clearTranscripts();
+    expect(localStorage.getItem(KEY("s1"))).toBeNull();
+    expect(localStorage.getItem(KEY("s2"))).toBeNull();
+    expect(localStorage.getItem("attendance-bot-theme")).toBe("dark");
   });
 });

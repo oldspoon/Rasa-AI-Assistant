@@ -12,6 +12,17 @@ function lastTs(key) {
   }
 }
 
+// Remove every saved transcript, so the next person on this browser sees none.
+export function clearTranscripts() {
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(K_LOG_PREFIX))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* Storage can be unavailable. */
+  }
+}
+
 // Log each turn under the conversation id (console and localStorage).
 export function trackTurn(sender, from, text, extra) {
   (from === "notice" ? console.warn : console.info)(
