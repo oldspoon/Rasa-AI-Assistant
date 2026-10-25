@@ -69,7 +69,7 @@ The model is [`onnx-community/whisper-base.en`](https://huggingface.co/onnx-comm
 the ONNX build of OpenAI's `whisper-base.en`, published by the transformers.js
 maintainers. It's pinned to commit `51eefc0`, so nothing pushed to the repo
 later can change what runs in your browser. The full hash lives in
-`WHISPER_REVISION`, in both `web/src/App.jsx` and `deploy/static-space/app.js`.
+`WHISPER_REVISION`, in both `web/src/voice/config.js` and `deploy/static-space/app.js`.
 
 That commit was the head of `main` (dated 2024-10-08) when I pinned it, taken
 from the Hub's API. I haven't audited what's inside it. To bump it, grab a new

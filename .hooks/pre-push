@@ -1,0 +1,16 @@
+#!/bin/sh
+# Pre-push check: run the web test suite. A failing test stops the push.
+# Enable once per clone:  git config core.hooksPath .hooks
+set -e
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root/web"
+
+if [ ! -d node_modules ]; then
+  echo "pre-push: web/node_modules is missing. Run 'npm install' in web/ first." >&2
+  exit 1
+fi
+
+echo "pre-push: running web tests..."
+npm test
+echo "pre-push: all web tests passed."

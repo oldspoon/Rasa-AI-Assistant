@@ -36,3 +36,6 @@ package-lock.json
 models/*.tar.gz
 results/
 /rasa/logs/
+
+# Copied from web/src for the static Space.
+/deploy/static-space/shared/
