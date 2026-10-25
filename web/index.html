@@ -12,10 +12,10 @@
           (theme === "system" &&
             window.matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.theme = dark ? "dark" : "light";
-        // Saved "off" and "achromatopsia" are the old names for the greyscale default.
+        // Saved "off", "colour" and "achromatopsia" now mean the greyscale default.
         var cb = localStorage.getItem("attendance-bot-cvd");
         document.documentElement.dataset.cb =
-          !cb || cb === "off" || cb === "achromatopsia" ? "default" : cb;
+          !cb || cb === "off" || cb === "colour" || cb === "achromatopsia" ? "default" : cb;
       })();
     </script>
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%octopus.svg" />

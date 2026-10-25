@@ -97,6 +97,16 @@
   --focus: #e08a4d;
 }
 
+:root[data-cb="deuteranomaly"] {
+  --accent: #00607a;
+  --accent-hover: #004e63;
+  --focus: #00607a;
+}
+
+:root[data-theme="dark"][data-cb="deuteranomaly"] {
+  --focus: #5cc3e0;
+}
+
 /* Default: the achromatopsia (greyscale) palette. */
 :root[data-cb="default"],
 :root:not([data-cb]) {

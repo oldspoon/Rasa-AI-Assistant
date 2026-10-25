@@ -13,6 +13,16 @@ describe("colour modes", () => {
     }
   });
 
+  it("offers four colour-blindness palettes and no plain full-colour option", () => {
+    expect(CVD_MODES.map((mode) => mode.id)).toEqual([
+      "default", "protanopia", "deuteranopia", "tritanopia", "deuteranomaly",
+    ]);
+  });
+
+  it("maps the removed full-colour choice to the default", () => {
+    expect(normalizeCvd("colour")).toBe("default");
+  });
+
   it("maps nothing, the old default and the old greyscale name to the default", () => {
     expect(normalizeCvd(null)).toBe("default");
     expect(normalizeCvd(undefined)).toBe("default");
