@@ -1,4 +1,4 @@
-# Student asks schedule without intro (custom action guards the message)
+# Student asks for lecture days without introducing (the action guards the reply)
 version: "3.1"
 
 stories:

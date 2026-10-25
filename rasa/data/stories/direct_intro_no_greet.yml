@@ -1,4 +1,4 @@
-# Student skips greet, goes straight to intro
+# Student skips the greeting and introduces directly
 version: "3.1"
 
 stories:

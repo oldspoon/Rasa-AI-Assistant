@@ -1,8 +1,8 @@
 version: "3.1"
 
 # End-to-end stories. Run: rasa test core --e2e --stories tests/test_stories.yml
-# Entities are inline, e.g. [Alice](first_name). Custom actions are not run;
-# Checks intents and actions only. slot_was_set mirrors runtime name slots.
+# Entities are inline, e.g. [Alice](first_name). Custom actions are not run,
+# so only intents and actions are checked. slot_was_set mirrors the runtime name slots.
 
 stories:
 
@@ -118,7 +118,7 @@ stories:
       intent: goodbye
     - action: utter_goodbye
 
-# Guard rails
+# Guardrails
 - story: e2e - extra - asks schedule without introducing (guard)
   steps:
     - action: action_listen

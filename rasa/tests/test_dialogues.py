@@ -68,7 +68,7 @@ def test_ask_both_lecture_and_practical_days() -> None:
     )
     assert_reply(turns, 0, "found your record, Mia Thomas")
     assert_reply(turns, 1, "Lecture", "Wednesday")
-    assert_reply(turns, 2, "do not have any practical sessions", "Wednesday")
+    assert_reply(turns, 2, "Practical", "Friday")
 
 
 def test_complete_practical_session_with_all_details() -> None:
@@ -81,10 +81,11 @@ def test_complete_practical_session_with_all_details() -> None:
     assert_reply(turns, 0, "found your record, Bob Smith")
     assert_reply(turns, 1, "Practical", "Tuesday")
     assert_reply(turns, 2, "Sighthill")
-    assert_reply(turns, 3, "11:00-13:00")
-    assert_reply(turns, 4, "A94")
-    assert_reply(turns, 5, "Bob Smith", "Tuesday", "Sighthill", "Practical",
-                 "11:00-13:00", "Computing", "A94")
+    assert_reply(turns, 3, "14:00-16:00", "11:00-13:00")
+    assert_reply(turns, 4, "D75", "A94")
+    assert_reply(turns, 5, "Bob Smith", "Sighthill", "Computing", "Lecture",
+                 "Thursday", "14:00-16:00", "D75", "Practical", "Tuesday",
+                 "11:00-13:00", "A94")
     assert_reply(turns, 6, "Goodbye")
 
 
@@ -109,8 +110,8 @@ def test_complete_session_olivia() -> None:
     )
     assert_reply(turns, 1, "found your record, Olivia White")
     assert_reply(turns, 2, "Lecture", "Friday")
-    assert_reply(turns, 3, "12:00-14:00")
-    assert_reply(turns, 4, "F69", "Merchiston")
+    assert_reply(turns, 3, "12:00-14:00", "15:00-17:00")
+    assert_reply(turns, 4, "F69", "D10", "Merchiston")
     assert_reply(turns, 5, "Goodbye")
 
 
@@ -121,9 +122,9 @@ def test_direct_intro_no_greet() -> None:
          "What time is my session?", "What room am I in?"]
     )
     assert_reply(turns, 0, "found your record, Liam Anderson")
-    assert_reply(turns, 1, "Liam", "Tuesday", "Merchiston")
-    assert_reply(turns, 2, "15:00-17:00")
-    assert_reply(turns, 3, "E03", "Merchiston")
+    assert_reply(turns, 1, "Liam", "Merchiston")
+    assert_reply(turns, 2, "12:00-14:00", "15:00-17:00")
+    assert_reply(turns, 3, "C05", "E03", "Merchiston")
 
 
 def test_explain_the_bot() -> None:
@@ -142,14 +143,14 @@ def test_full_multi_turn_conversation() -> None:
          "Give me all my details", "Goodbye"]
     )
     assert_reply(turns, 1, "found your record, Henry Davis")
-    assert_reply(turns, 2, "do not have any lecture sessions", "Wednesday",
-                 "Practical")
+    assert_reply(turns, 2, "Lecture", "Friday")
     assert_reply(turns, 3, "Sighthill")
-    assert_reply(turns, 4, "11:00-13:00")
+    assert_reply(turns, 4, "14:00-16:00", "11:00-13:00")
     assert_reply(turns, 5, "Computing")
-    assert_reply(turns, 6, "E54")
-    assert_reply(turns, 7, "Henry Davis", "Wednesday", "Sighthill", "Practical",
-                 "11:00-13:00", "Computing", "E54")
+    assert_reply(turns, 6, "C13", "E54")
+    assert_reply(turns, 7, "Henry Davis", "Sighthill", "Computing", "Lecture",
+                 "Friday", "14:00-16:00", "C13", "Practical", "Wednesday",
+                 "11:00-13:00", "E54")
     assert_reply(turns, 8, "Goodbye")
 
 
@@ -159,8 +160,9 @@ def test_greet_then_introduce_and_check_all() -> None:
         ["Hi", "I'm Katie Taylor", "Give me all my details", "Goodbye"]
     )
     assert_reply(turns, 1, "found your record, Katie Taylor")
-    assert_reply(turns, 2, "Katie Taylor", "Monday", "Sighthill", "Lecture",
-                 "14:00-16:00", "Computing", "B64")
+    assert_reply(turns, 2, "Katie Taylor", "Sighthill", "Computing", "Lecture",
+                 "Monday", "14:00-16:00", "B64", "Practical", "Wednesday",
+                 "11:00-13:00", "C77")
     assert_reply(turns, 3, "Goodbye")
 
 
@@ -179,7 +181,7 @@ def test_retry_after_unknown_student() -> None:
     assert_reply(turns, 1, "couldn't find a student with the name John Doe")
     assert_reply(turns, 2, "found your record, Mia Thomas")
     assert_reply(turns, 3, "Wednesday")
-    assert_reply(turns, 4, "E25", "Craiglockhart")
+    assert_reply(turns, 4, "E25", "F58", "Craiglockhart")
     assert_reply(turns, 5, "Goodbye")
 
 
@@ -187,15 +189,16 @@ def test_student_asks_all_details_after_intro() -> None:
     """Story: `student asks all details after intro` (Carol)."""
     turns = converse(["I'm Carol Williams", "Give me all my details"])
     assert_reply(turns, 0, "found your record, Carol Williams")
-    assert_reply(turns, 1, "Carol Williams", "Wednesday", "Merchiston", "Lecture",
-                 "12:00-14:00", "Biology", "C31")
+    assert_reply(turns, 1, "Carol Williams", "Merchiston", "Biology", "Lecture",
+                 "Wednesday", "12:00-14:00", "C31", "Practical", "Friday",
+                 "15:00-17:00", "C00")
 
 
 def test_student_asks_campus_after_intro() -> None:
     """Story: `student asks campus after intro` (David)."""
     turns = converse(["I'm David Brown", "Which campus am I at?"])
     assert_reply(turns, 0, "found your record, David Brown")
-    assert_reply(turns, 1, "David", "Thursday", "Craiglockhart")
+    assert_reply(turns, 1, "David", "Craiglockhart")
 
 
 def test_student_asks_practical_then_full_details() -> None:
@@ -205,10 +208,10 @@ def test_student_asks_practical_then_full_details() -> None:
          "Give me all my details", "Goodbye"]
     )
     assert_reply(turns, 1, "found your record, Isabella Wilson")
-    assert_reply(turns, 2, "do not have any practical sessions", "Thursday",
-                 "Lecture")
-    assert_reply(turns, 3, "Isabella Wilson", "Thursday", "Merchiston", "Lecture",
-                 "12:00-14:00", "Biology", "A03")
+    assert_reply(turns, 2, "Practical", "Monday")
+    assert_reply(turns, 3, "Isabella Wilson", "Merchiston", "Biology", "Lecture",
+                 "Thursday", "12:00-14:00", "A03", "Practical", "Monday",
+                 "15:00-17:00", "A48")
     assert_reply(turns, 4, "Goodbye")
 
 
@@ -216,21 +219,22 @@ def test_student_asks_room_after_intro() -> None:
     """Story: `student asks room after intro` (Grace)."""
     turns = converse(["I'm Grace Miller", "What room am I in?"])
     assert_reply(turns, 0, "found your record, Grace Miller")
-    assert_reply(turns, 1, "Grace", "E11", "Craiglockhart")
+    assert_reply(turns, 1, "Grace", "E11", "B97", "Craiglockhart")
 
 
 def test_student_asks_subject_after_intro() -> None:
     """Story: `student asks subject after intro` (Frank)."""
     turns = converse(["I'm Frank Garcia", "What subject do I have?"])
     assert_reply(turns, 0, "found your record, Frank Garcia")
-    assert_reply(turns, 1, "Frank", "Monday", "Biology")
+    assert_reply(turns, 1, "Frank", "Biology")
 
 
 def test_student_asks_time_after_intro() -> None:
     """Story: `student asks time after intro` (Emma)."""
     turns = converse(["I'm Emma Jones", "What time is my session?"])
     assert_reply(turns, 0, "found your record, Emma Jones")
-    assert_reply(turns, 1, "Emma", "Lecture", "Friday", "14:00-16:00")
+    assert_reply(turns, 1, "Emma", "Lecture", "Friday", "14:00-16:00",
+                 "Practical", "Tuesday", "11:00-13:00")
 
 
 def test_student_asks_without_intro() -> None:
@@ -257,8 +261,9 @@ def test_student_introduces_then_asks_schedule() -> None:
     """Story: `student introduces then asks schedule` (Jack)."""
     turns = converse(["I'm Jack Moore", "Give me all my details"])
     assert_reply(turns, 0, "found your record, Jack Moore")
-    assert_reply(turns, 1, "Jack Moore", "Friday", "Craiglockhart", "Practical",
-                 "13:00-15:00", "Fine Arts", "A27")
+    assert_reply(turns, 1, "Jack Moore", "Craiglockhart", "Fine Arts", "Lecture",
+                 "Tuesday", "10:00-12:00", "A45", "Practical", "Friday",
+                 "13:00-15:00", "A27")
 
 
 # Parking arrears stories.

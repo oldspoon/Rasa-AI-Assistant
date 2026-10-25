@@ -1,4 +1,4 @@
-# Unknown student → user retries with a correct name → continues
+# Unknown student, then a retry with a correct name
 version: "3.1"
 
 stories:

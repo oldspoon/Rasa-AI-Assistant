@@ -1,4 +1,4 @@
-# Student introduces → found → asks lecture days
+# Student introduces, is found, then asks for lecture days
 version: "3.1"
 
 stories:

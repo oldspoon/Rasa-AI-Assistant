@@ -1,4 +1,4 @@
-# Student asks lecture days then practical days
+# Student asks for lecture days, then practical days
 version: "3.1"
 
 stories:
