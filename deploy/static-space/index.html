@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Campus Attendance Bot — Rasa demo</title>
+    <title>Octopi — Campus Attendance Bot demo</title>
     <meta
       name="description"
-      content="Interactive demo of a Rasa campus-attendance chatbot: lecture and practical schedule lookup by student name."
+      content="Interactive demo of Octopi, a Rasa campus-attendance chatbot: lecture and practical schedule lookup by student name."
     />
     <script>
       // Apply saved theme before first paint.
@@ -19,14 +19,11 @@
         document.documentElement.dataset.theme = dark ? "dark" : "light";
       })();
     </script>
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>"
-    />
+    <link rel="icon" type="image/svg+xml" href="octopus.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
@@ -35,9 +32,24 @@
     <div class="page">
       <header class="topbar">
         <div class="brand">
-          <span class="brand-emoji">🎓</span>
-          Campus Attendance Bot
-          <span class="chip">Rasa 3.6</span>
+          <!-- Octopus mark: Boxicons (MIT). -->
+          <svg
+            class="brand-icon"
+            viewBox="0 0 24 24"
+            role="img"
+            aria-label="Octopi"
+          >
+            <path
+              fill="currentColor"
+              d="M10 10a1 1 0 1 0 0 2a1 1 0 1 0 0-2m4 0a1 1 0 1 0 0 2a1 1 0 1 0 0-2m-5 5c0 4.92-5.76 5-6 5v2c2.77 0 8-1.46 8-7v-1H9zm6 0v-1h-2v1c0 2.88 1.42 5.02 4.11 6.17c1.92.82 3.81.83 3.89.83v-2c-.24 0-6-.08-6-5"
+            />
+            <path
+              fill="currentColor"
+              d="M20 15c0 .55-.45 1-1 1s-1-.45-1-1c0-1.48.35-2.89.62-4.02c.07-.3.14-.59.2-.85c.23-1.06.19-2.17-.14-3.21C17.76 3.98 15.08 2 11.99 2S6.22 3.98 5.3 6.92a6.36 6.36 0 0 0-.14 3.21c.06.26.13.54.2.85c.28 1.13.62 2.54.62 4.02c0 .55-.45 1-1 1s-1-.45-1-1v-1h-2v1c0 1.65 1.35 3 3 3s3-1.35 3-3s-.38-3.26-.68-4.5c-.07-.29-.14-.56-.19-.8a4.2 4.2 0 0 1 .1-2.19C7.86 5.41 9.78 4 11.99 4s4.12 1.41 4.78 3.51c.22.71.25 1.47.1 2.19c-.05.25-.12.51-.19.8c-.3 1.24-.68 2.78-.68 4.5s1.35 3 3 3s3-1.35 3-3z"
+            />
+          </svg>
+          Octopi
+          <span class="chip">Campus Attendance Bot</span>
           <span class="chip chip-quiet">browser demo</span>
         </div>
         <nav class="topnav">
@@ -52,18 +64,43 @@
             id="themeToggle"
             class="theme-toggle"
             type="button"
-            aria-label="Toggle dark mode"
+            aria-label="Switch to dark mode"
           >
-            🌙
+            <svg
+              class="theme-icon theme-icon-moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+            </svg>
+            <svg
+              class="theme-icon theme-icon-sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"
+              />
+            </svg>
           </button>
         </nav>
       </header>
 
       <main class="content">
         <section class="hero">
-          <h1>Ask for your <em>campus schedule</em>.</h1>
+          <h1>Ask <em>Octopi</em> for your campus schedule.</h1>
           <p class="hero-sub">
-            Log in with your student username and password — the bot looks you
+            Log in with your student username and password — Octopi looks you
             up and answers about your <strong>lecture or practical days</strong>,
             <strong>campus</strong>, <strong>time</strong>,
             <strong>subject</strong> and <strong>room</strong>.
@@ -73,7 +110,7 @@
         <section class="chat-card" aria-label="Chat demo">
           <div class="chat-head">
             <div class="chat-head-text">
-              <strong>Try it now</strong>
+              <strong>Try Octopi now</strong>
               <span class="muted"
                 >in-browser demo — the same dialogue and data as the deployed
                 bot, replayed without a server</span
@@ -89,12 +126,24 @@
 
           <div id="loginView" class="login">
             <div class="login-head">
-              <span class="login-emoji" aria-hidden="true">🔐</span>
+              <span class="login-icon" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="4" y="10" width="16" height="11" rx="2" />
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                </svg>
+              </span>
               <div>
                 <strong>Student login</strong>
                 <p class="muted">
-                  Sign in to try the schedule lookup — the same credentials the
-                  live bot checks.
+                  Sign in to try the schedule lookup with Octopi — the same
+                  credentials the live bot checks.
                 </p>
               </div>
             </div>
@@ -148,7 +197,18 @@
                 title="Speak your question (English)"
                 hidden
               >
-                🎤
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="9" y="2" width="6" height="12" rx="3" />
+                  <path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8" />
+                </svg>
               </button>
               <button id="sendBtn" type="submit" class="send-btn">Send</button>
             </form>
@@ -164,7 +224,7 @@
                 A DIET classifier extracts names and intents from natural
                 sentences (<em>"I'm Bob Smith"</em>, <em>"good morning, Alice
                 Johnson here"</em>). Rule, memoization and TED policies drive the
-                conversation — 12 intents, 19 stories, a trained model checked
+                conversation — 13 intents, 20 stories, a trained model checked
                 into the repo.
               </p>
             </article>
@@ -255,12 +315,12 @@ cd rasa &amp;&amp; ./dev-run.sh -r</code></pre>
 
       <footer class="footer">
         <span
-          >Campus Attendance Bot — demo rebuilt from the verified deployment ·
-          © 2026 oldspoon · CC BY-NC 4.0</span
+          >Octopi — Campus Attendance Bot demo rebuilt from the verified
+          deployment · © 2026 oldspoon · CC BY-NC 4.0</span
         >
       </footer>
     </div>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

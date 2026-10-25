@@ -1,202 +1,11 @@
 /* In-browser demo: replays the bot offline, with the Neon login for sign-in. */
 "use strict";
 
-/* Students (matches the database). */
-
-const STUDENTS = [
-  { first: "Alice", middle: "Marie", last: "Johnson", campus: "Craiglockhart", type: "Lecture", day: "Monday", time: "10:00-12:00", subject: "Fine Arts", room: "F14" },
-  { first: "Bob", middle: "James", last: "Smith", campus: "Sighthill", type: "Practical", day: "Tuesday", time: "11:00-13:00", subject: "Computing", room: "A94" },
-  { first: "Carol", middle: "Anne", last: "Williams", campus: "Merchiston", type: "Lecture", day: "Wednesday", time: "12:00-14:00", subject: "Biology", room: "C31" },
-  { first: "David", middle: "Lee", last: "Brown", campus: "Craiglockhart", type: "Practical", day: "Thursday", time: "13:00-15:00", subject: "Fine Arts", room: "B17" },
-  { first: "Emma", middle: "Grace", last: "Jones", campus: "Sighthill", type: "Lecture", day: "Friday", time: "14:00-16:00", subject: "Computing", room: "F13" },
-  { first: "Frank", middle: "Thomas", last: "Garcia", campus: "Merchiston", type: "Practical", day: "Monday", time: "15:00-17:00", subject: "Biology", room: "F94" },
-  { first: "Grace", middle: "Louise", last: "Miller", campus: "Craiglockhart", type: "Lecture", day: "Tuesday", time: "10:00-12:00", subject: "Fine Arts", room: "E11" },
-  { first: "Henry", middle: "Charles", last: "Davis", campus: "Sighthill", type: "Practical", day: "Wednesday", time: "11:00-13:00", subject: "Computing", room: "E54" },
-  { first: "Isabella", middle: "Rose", last: "Wilson", campus: "Merchiston", type: "Lecture", day: "Thursday", time: "12:00-14:00", subject: "Biology", room: "A03" },
-  { first: "Jack", middle: "Edward", last: "Moore", campus: "Craiglockhart", type: "Practical", day: "Friday", time: "13:00-15:00", subject: "Fine Arts", room: "A27" },
-  { first: "Katie", middle: "Lynn", last: "Taylor", campus: "Sighthill", type: "Lecture", day: "Monday", time: "14:00-16:00", subject: "Computing", room: "B64" },
-  { first: "Liam", middle: "Patrick", last: "Anderson", campus: "Merchiston", type: "Practical", day: "Tuesday", time: "15:00-17:00", subject: "Biology", room: "E03" },
-  { first: "Mia", middle: "Claire", last: "Thomas", campus: "Craiglockhart", type: "Lecture", day: "Wednesday", time: "10:00-12:00", subject: "Fine Arts", room: "E25" },
-  { first: "Noah", middle: "William", last: "Jackson", campus: "Sighthill", type: "Practical", day: "Thursday", time: "11:00-13:00", subject: "Computing", room: "F83" },
-  { first: "Olivia", middle: "Faith", last: "White", campus: "Merchiston", type: "Lecture", day: "Friday", time: "12:00-14:00", subject: "Biology", room: "F69" },
-];
-
-/* Reply templates (same wording as the live bot). */
-
-const SAY = {
-  welcome:
-    "Hello! Welcome to the Campus Attendance System. Ask me about your schedule - lecture or practical days, campus, time, subject or room. If I don't know you yet, tell me your first and last name (e.g. 'My name is Alice Johnson').",
-  found: (f, l) =>
-    `Great! I found your record, ${f} ${l}. You can now ask me about your schedule. For example: 'What days do I have lectures?', 'What days do I have practicals?', or 'Give me all my schedule details.'`,
-  notFound: (f, l) =>
-    `I'm sorry, I couldn't find a student with the name ${f} ${l} in our attendance records. Please check your name and try again.`,
-  lectureDays: (s) =>
-    `Hi ${s.first}! You have a **Lecture** session on **${s.day}**. Would you like to know more details such as your campus, time, subject, or room?`,
-  lectureDaysButPractical: (s) =>
-    `Hi ${s.first}! You do not have any lecture sessions registered - your session on **${s.day}** is a **Practical** session. Ask me about your practical days if you'd like.`,
-  practicalDays: (s) =>
-    `Hi ${s.first}! You have a **Practical** session on **${s.day}**. Would you like to know more details such as your campus, time, subject, or room?`,
-  practicalDaysButLecture: (s) =>
-    `Hi ${s.first}! You do not have any practical sessions registered - your session on **${s.day}** is a **Lecture** session. Ask me about your lecture days if you'd like.`,
-  campus: (s) =>
-    `${s.first}, your session on **${s.day}** takes place at the **${s.campus}** campus.`,
-  time: (s) =>
-    `${s.first}, your **${s.type}** session on **${s.day}** runs from **${s.time}**.`,
-  subject: (s) =>
-    `${s.first}, your subject on **${s.day}** is **${s.subject}**.`,
-  room: (s) =>
-    `${s.first}, your session is in room **${s.room}** at the **${s.campus}** campus.`,
-  fullSchedule: (s) => [
-    `Here is the full schedule for **${s.first} ${s.last}**:`,
-    `**Day:**           ${s.day}\n**Campus:**        ${s.campus}\n**Session type:**  ${s.type}\n**Time:**          ${s.time}\n**Subject:**       ${s.subject}\n**Room:**          ${s.room}`,
-    "Is there anything else you'd like to know?",
-  ],
-  guard:
-    "It seems I don't have your information yet. Please introduce yourself first by telling me your first name and last name.",
-  thanks:
-    "You're welcome! Let me know if you need anything else about your schedule.",
-  goodbye: "Goodbye! Have a great session on campus!",
-  outOfScope:
-    "I'm sorry, I can only help with campus attendance and schedule information. Please ask me something related to your timetable.",
-  fallback:
-    "I didn't quite understand that. You can ask me about your lecture or practical days, campus location, time, subject, or room number.",
-};
-
-/* Dialogue engine. */
-
-function normalize(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9' ]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function findStudentIn(text) {
-  for (const s of STUDENTS) {
-    const flat = `${s.first} ${s.last}`.toLowerCase();
-    const full = `${s.first} ${s.middle} ${s.last}`.toLowerCase();
-    if (text.includes(flat) || text.includes(full)) return s;
-  }
-  return null;
-}
-
-function titleCase(word) {
-  return word.charAt(0).toUpperCase() + word.slice(1);
-}
-
-function parseIntroducedName(text) {
-  // e.g. 'my name is john doe', 'this is jane roe here'.
-  const m = text.match(
-    /(?:my name is|my name's|name is|name's|\bi am\b|\bi'm\b|\bim\b|\bthis is\b|\bhere\b)\s+([a-z]+(?: [a-z]+){1,2})/
-  );
-  if (!m) return null;
-  const words = m[1].split(" ").slice(0, 3);
-  const STOP = ["here", "unknown", "please", "thanks"];
-  while (words.length > 2 && STOP.includes(words[words.length - 1])) {
-    words.pop();
-  }
-  return words.map(titleCase).join(" ");
-}
-
-const RE = {
-  greeting: /\b(hi|hello|hey|yo|howdy|good (morning|afternoon|evening))\b/,
-  thanks: /\b(thanks|thank you|thankyou|thx|cheers|much appreciated|appreciated)\b/,
-  goodbye: /\b(bye|goodbye|farewell|see you)\b/,
-  details:
-    /(all (my )?(details|schedule)|full (schedule|details|timetable|info)|everything|complete (schedule|information|details|info)|my full schedule|full information)/,
-  lecture: /\blectures?\b/,
-  practical: /\bpracticals?\b/,
-  lectureDayish: /\b(day|days|when|what)\b/,
-  campus:
-    /(campus|building|where do i need to go|where is (my|the) (session|class|lecture|practical)|location)/,
-  time: /(what time|time is my|when is my|when does|runs from|start time|start and end|what time)/,
-  subject: /(subject|studying|module|course|activity)/,
-  room: /\b(room|where am i|which room)\b/,
-  filler: /^(ok|okay|cool|nice|hmm+|hm|yeah|sure|right|oh|ah|meh|k|np|got it)\.?$/,
-};
-
-/** Reply to a user message: { texts, student }. */
-function reply(text, student) {
-  const t = normalize(text);
-  if (!t) return { texts: [SAY.fallback], student };
-
-  // 1. Known student name: introduction.
-  const found = findStudentIn(t);
-  if (found) {
-    return { texts: [SAY.found(found.first, found.last)], student: found };
-  }
-
-  // 2. Unknown name: retry.
-  const candidate = parseIntroducedName(t);
-  if (candidate) {
-    const [f, ...rest] = candidate.split(" ");
-    return { texts: [SAY.notFound(f, rest.join(" ") || "")], student: student };
-  }
-
-  // 3. Social intents.
-  if (RE.goodbye.test(t)) return { texts: [SAY.goodbye], student };
-  if (RE.thanks.test(t)) return { texts: [SAY.thanks], student };
-  if (RE.greeting.test(t)) return { texts: [SAY.welcome], student };
-
-  // 4. Schedule questions: need a known student.
-  const scheduleQuestion =
-    RE.details.test(t) ||
-    RE.lecture.test(t) ||
-    RE.practical.test(t) ||
-    RE.campus.test(t) ||
-    RE.time.test(t) ||
-    RE.subject.test(t) ||
-    RE.room.test(t);
-
-  if (scheduleQuestion && !student) {
-    return { texts: [SAY.guard], student };
-  }
-
-  if (student) {
-    if (RE.details.test(t)) {
-      return { texts: SAY.fullSchedule(student), student };
-    }
-    if (RE.lecture.test(t) && (RE.lectureDayish.test(t) || !RE.practical.test(t))) {
-      const text2 =
-        student.type === "Lecture"
-          ? SAY.lectureDays(student)
-          : SAY.lectureDaysButPractical(student);
-      return { texts: [text2], student };
-    }
-    if (RE.practical.test(t) && (RE.lectureDayish.test(t) || !RE.lecture.test(t))) {
-      const text2 =
-        student.type === "Practical"
-          ? SAY.practicalDays(student)
-          : SAY.practicalDaysButLecture(student);
-      return { texts: [text2], student };
-    }
-    if (RE.campus.test(t)) return { texts: [SAY.campus(student)], student };
-    if (RE.time.test(t)) return { texts: [SAY.time(student)], student };
-    if (RE.subject.test(t)) return { texts: [SAY.subject(student)], student };
-    if (RE.room.test(t)) return { texts: [SAY.room(student)], student };
-  }
-
-  // 5. Fallback.
-  if (RE.filler.test(t)) return { texts: [SAY.fallback], student };
-  return { texts: [SAY.outOfScope], student };
-}
-
-/** Login check, same rule as rasa/auth_channel.py. */
-function checkCredentials(username, password) {
-  const u = String(username || "").toLowerCase().replace(/\s+/g, "");
-  const p = String(password || "").toLowerCase().replace(/\s+/g, "");
-  if (!u || !p) return null;
-  for (const s of STUDENTS) {
-    if (
-      `${s.first}${s.last}`.toLowerCase() === u &&
-      `${s.last}${s.first}`.toLowerCase() === p
-    ) {
-      return s;
-    }
-  }
-  return null;
-}
+// Shared with the web chat; copied into shared/ by sync-shared.sh and the deploy script.
+import { SAY, STUDENTS, checkCredentials, reply } from "./shared/demoEngine.js";
+import { isNoiseTranscript, mergeTranscript, scrubTranscript } from "./shared/transcript.js";
+import { peakOf, slice16k as sliceCapture, total16k as totalCapture } from "./shared/pcm.js";
+import { attachPcmTap } from "./shared/capture.js";
 
 /* Live login: Neon Function, same contract as rasa/auth_channel.py. */
 
@@ -414,42 +223,44 @@ let voiceMode = BROWSER_SPEECH_OK ? "browser" : CAN_WHISPER ? "whisper" : "none"
 
 const SPEECH_HINT_MS = 6000;
 const WHISPER_MODEL = "onnx-community/whisper-base.en";
+// Exact commit (see web/src/App.jsx), never 'main'.
+const WHISPER_REVISION = "51eefc0af78b103839eda9e7e4f4186acc6517fe";
 const WHISPER_CDN =
   "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js";
 const WHISPER_RATE = 16000; // the sample rate the model wants
-const LIVE_FIRST_S = 2.2; // audio before the first live transcription pass
+const LIVE_FIRST_S = 2.2; // first live pass, in seconds of audio
 const LIVE_CHUNK_S = 3.5; // audio per later live pass
-const LIVE_OVERLAP_S = 0.8; // re-listen to a little already-covered audio
-const MAX_RECORD_S = 60; // dictation stops by itself after this long
-const SILENT_PEAK = 0.006; // below this peak the recording counts as silence
+const LIVE_OVERLAP_S = 0.8; // overlap with the previous pass
+const MAX_RECORD_S = 60; // auto-stop limit
+const SILENT_PEAK = 0.006; // below this peak: silence
 
 let recognizer = null;
-let speechActive = false; // recognition is running / may write to the box
-let wantListen = false; // the user wants dictation to continue
-let speechBase = ""; // text already typed when the mic starts
+let speechActive = false; // recognizer is running
+let wantListen = false; // user wants dictation on
+let speechBase = ""; // text before the mic started
 let speechHintTimer = 0;
 let speechWatchdog = 0;
-let committedSpeech = ""; // final text of sessions that already ended
-let sessionFinal = ""; // final results of the running session
-let sessionInterim = ""; // interim words of the running session
-let sawSpeechEvent = false; // did the recognizer ever react?
-let noSignalRestarts = 0; // restarts with no transcript yet
-let permPoll = 0; // watches for a dead speech service
+let committedSpeech = ""; // final text of ended sessions
+let sessionFinal = ""; // final words of this session
+let sessionInterim = ""; // interim words of this session
+let sawSpeechEvent = false; // has the recognizer reacted?
+let noSignalRestarts = 0; // restarts without any transcript
+let permPoll = 0; // polls for a dead speech service
 let transcribing = false;
 let recording = false; // on-device capture running?
 let capDetach = null; // unhooks the PCM tap
-let capBlocks = []; // Float32Array blocks at the context rate
+let capBlocks = []; // audio blocks at the context rate
 let capRate = WHISPER_RATE;
-let capStream = null; // the microphone stream being captured
-let liveText = ""; // transcript of the live passes so far
-let liveCovered = 0; // 16 kHz samples already live-transcribed
+let capStream = null; // microphone stream
+let liveText = ""; // live transcript so far
+let liveCovered = 0; // 16 kHz samples already transcribed
 let liveBusy = false; // one live pass at a time
-let liveStale = false; // stop/final pass owns the box now
+let liveStale = false; // final pass owns the box
 let recordTimer = 0;
-let levelTimer = 0; // watches the mic level while recording
-let levelCtx = null; // the mic AudioContext (analyser + capture)
-let heardSpeech = false; // did any audible sound arrive?
-let micWarned = false; // "not hearing anything" hint shown?
+let levelTimer = 0; // mic level watcher
+let levelCtx = null; // mic AudioContext
+let heardSpeech = false; // any audible sound yet?
+let micWarned = false; // silent-mic hint shown?
 
 function showSpeechHint(message) {
   speechHint.textContent = message;
@@ -462,7 +273,7 @@ function showSpeechHint(message) {
 
 // Stop dictation: the built-in recognizer and the on-device capture.
 function stopListening() {
-  speechActive = false; // late results must not rewrite the box
+  speechActive = false; // ignore late results
   wantListen = false;
   clearTimeout(speechWatchdog);
   clearInterval(permPoll);
@@ -488,189 +299,15 @@ function basePlus(text) {
   return speechBase ? speechBase + " " + text : text;
 }
 
-// Drop Whisper's silence hallucinations ('[BLANK_AUDIO]', 'thank you').
-function scrubTranscript(raw) {
-  return String(raw || "")
-    .replace(/\[[^\]]{0,40}\]/g, " ")
-    .replace(/\((?:silence|blank audio|inaudible|no speech)\)/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function isNoiseTranscript(text) {
-  return (
-    !text ||
-    /^(you|thank you\.?|thanks for watching\.?|please subscribe\.?)$/i.test(text)
-  );
-}
-
-function peakOf(samples) {
-  let peak = 0;
-  for (let i = 0; i < samples.length; i += 1) {
-    const v = Math.abs(samples[i]);
-    if (v > peak) peak = v;
-  }
-  return peak;
-}
-
-// Join a pass onto the committed text, skipping overlapped words.
-function mergeTranscript(committed, addition) {
-  const a = committed.trim() ? committed.trim().split(/\s+/) : [];
-  const b = addition.trim() ? addition.trim().split(/\s+/) : [];
-  if (!a.length) return b.join(" ");
-  if (!b.length) return a.join(" ");
-  const max = Math.min(a.length, b.length, 12);
-  for (let k = max; k > 0; k -= 1) {
-    if (
-      a.slice(a.length - k).join(" ").toLowerCase() ===
-      b.slice(0, k).join(" ").toLowerCase()
-    ) {
-      return [...a, ...b.slice(k)].join(" ");
-    }
-  }
-  return [...a, ...b].join(" ");
-}
-
-// Raw PCM capture: AudioWorklet off the main thread; ScriptProcessor as fallback.
-const CAPTURE_WORKLET_SOURCE = `
-class DictationCapture extends AudioWorkletProcessor {
-  constructor() {
-    super();
-    this._buf = new Float32Array(2048);
-    this._n = 0;
-  }
-  process(inputs) {
-    const ch = inputs[0] && inputs[0][0];
-    if (ch) {
-      for (let i = 0; i < ch.length; i += 1) {
-        this._buf[this._n++] = ch[i];
-        if (this._n === this._buf.length) {
-          this.port.postMessage(this._buf.slice(0));
-          this._n = 0;
-        }
-      }
-    }
-    return true;
-  }
-}
-registerProcessor("dictation-capture", DictationCapture);
-`;
-
-let captureWorkletUrl = null;
-function getCaptureWorkletUrl() {
-  if (!captureWorkletUrl) {
-    captureWorkletUrl = URL.createObjectURL(
-      new Blob([CAPTURE_WORKLET_SOURCE], { type: "application/javascript" })
-    );
-  }
-  return captureWorkletUrl;
-}
-
-// Returns a function that detaches the tap.
-async function attachPcmTap(ctx, sourceNode, onBlock) {
-  // Muted gain: pulls audio through, never played.
-  const silent = ctx.createGain();
-  silent.gain.value = 0;
-  if (ctx.audioWorklet) {
-    try {
-      await ctx.audioWorklet.addModule(getCaptureWorkletUrl());
-      const node = new AudioWorkletNode(ctx, "dictation-capture");
-      node.port.onmessage = (e) => onBlock(e.data);
-      sourceNode.connect(node);
-      node.connect(silent);
-      silent.connect(ctx.destination);
-      return function detach() {
-        node.port.onmessage = null;
-        try {
-          sourceNode.disconnect(node);
-          node.disconnect(silent);
-          silent.disconnect();
-        } catch (e) {
-          /* already detached */
-        }
-      };
-    } catch (err) {
-      console.info(
-        "[campus-demo] AudioWorklet capture unavailable, using ScriptProcessor:",
-        err
-      );
-    }
-  }
-  const node = ctx.createScriptProcessor(4096, 1, 1);
-  node.onaudioprocess = (e) =>
-    onBlock(new Float32Array(e.inputBuffer.getChannelData(0)));
-  sourceNode.connect(node);
-  node.connect(silent);
-  silent.connect(ctx.destination);
-  return function detach() {
-    node.onaudioprocess = null;
-    try {
-      sourceNode.disconnect(node);
-      node.disconnect(silent);
-      silent.disconnect();
-    } catch (e) {
-      /* already detached */
-    }
-  };
-}
-
-// Box-average downsampling, if the context refuses 16 kHz.
-function downsample16k(raw, ratio) {
-  const outLen = Math.max(1, Math.floor(raw.length / ratio));
-  const out = new Float32Array(outLen);
-  for (let i = 0; i < outLen; i += 1) {
-    const start = i * ratio;
-    const end = Math.min(raw.length, start + ratio);
-    let sum = 0;
-    let n = 0;
-    for (let j = Math.floor(start); j < end; j += 1) {
-      sum += raw[j];
-      n += 1;
-    }
-    out[i] = n ? sum / n : 0;
-  }
-  return out;
-}
-
 // On-device capture and live transcript.
 
-function rawLength() {
-  let n = 0;
-  for (const block of capBlocks) n += block.length;
-  return n;
-}
-
 function total16k() {
-  return Math.floor(rawLength() / (capRate / WHISPER_RATE));
-}
-
-// Copy [startRaw, endRaw) out of the captured blocks.
-function gatherRaw(startRaw, endRaw) {
-  const out = new Float32Array(Math.max(0, endRaw - startRaw));
-  let blockStart = 0;
-  let offset = 0;
-  for (const block of capBlocks) {
-    const blockEnd = blockStart + block.length;
-    if (blockEnd > startRaw && blockStart < endRaw) {
-      const from = Math.max(0, startRaw - blockStart);
-      const to = Math.min(block.length, endRaw - blockStart);
-      out.set(block.subarray(from, to), offset);
-      offset += to - from;
-    }
-    blockStart = blockEnd;
-    if (blockStart >= endRaw) break;
-  }
-  return out.subarray(0, offset);
+  return totalCapture(capBlocks, capRate);
 }
 
 // Slice of the recording at 16 kHz.
 function slice16k(start16, end16) {
-  if (capRate === WHISPER_RATE) return gatherRaw(start16, end16);
-  const ratio = capRate / WHISPER_RATE;
-  return downsample16k(
-    gatherRaw(Math.floor(start16 * ratio), Math.ceil(end16 * ratio)),
-    ratio
-  );
+  return sliceCapture(capBlocks, capRate, start16, end16);
 }
 
 function releaseCapture() {
@@ -688,7 +325,7 @@ function releaseCapture() {
     capStream.getTracks().forEach((t) => t.stop());
     capStream = null;
   }
-  closeLevelCtx(); // closes the shared microphone AudioContext
+  closeLevelCtx(); // close the mic AudioContext
 }
 
 // Transcribe ~3 s slices while speaking, one pass at a time.
@@ -756,6 +393,7 @@ function loadWhisperModel(onProgress) {
       .then(({ pipeline, env }) => {
         env.allowLocalModels = false; // fetch the model from the Hub
         return pipeline("automatic-speech-recognition", WHISPER_MODEL, {
+          revision: WHISPER_REVISION,
           dtype: "q8",
           device: "wasm",
           progress_callback: (p) => {
@@ -997,8 +635,8 @@ async function finalizeRecording() {
 if (BROWSER_SPEECH_OK) {
   recognizer = new SpeechRecognitionClass();
   recognizer.lang = "en-US"; // English
-  recognizer.interimResults = true; // stream words into the box while speaking
-  recognizer.continuous = true; // keep dictating until the mic is tapped again
+  recognizer.interimResults = true; // stream words while speaking
+  recognizer.continuous = true; // dictate until tapped again
   recognizer.maxAlternatives = 1;
 
   recognizer.onstart = () => {
@@ -1024,7 +662,7 @@ if (BROWSER_SPEECH_OK) {
   };
   recognizer.onerror = (event) => {
     sawSpeechEvent = true;
-    if (event.error === "aborted") return; // stopped on purpose
+    if (event.error === "aborted") return; // we stopped it
     clearTimeout(speechWatchdog);
     if (event.error === "network" || event.error === "service-not-allowed") {
       wantListen = false;
@@ -1034,8 +672,8 @@ if (BROWSER_SPEECH_OK) {
       );
       return;
     }
-    if (event.error === "no-speech") return; // silence; onend restarts it
-    wantListen = false; // fatal: mic blocked or no device
+    if (event.error === "no-speech") return; // onend restarts it
+    wantListen = false; // fatal: blocked or no mic
     const hints = {
       "not-allowed":
         "Microphone access is blocked - allow it for this site in your browser and try again.",
@@ -1171,16 +809,23 @@ logoutBtn.addEventListener("click", () => {
 
 resetBtn.addEventListener("click", resetChat);
 
+function syncThemeToggle() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  themeToggle.setAttribute(
+    "aria-label",
+    dark ? "Switch to light mode" : "Switch to dark mode"
+  );
+}
+
 themeToggle.addEventListener("click", () => {
   const next =
     document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;
   localStorage.setItem("campus-demo-theme", next);
-  themeToggle.textContent = next === "dark" ? "☀️" : "🌙";
+  syncThemeToggle();
 });
 
-themeToggle.textContent =
-  document.documentElement.dataset.theme === "dark" ? "☀️" : "🌙";
+syncThemeToggle();
 
 /* Initial state: login gate. */
 

@@ -35,6 +35,12 @@ trap 'rm -rf "$STAGE"' EXIT
 # The demo page, as committed at the ref.
 git archive --format=tar "$REF:deploy/static-space" | tar -x -C "$STAGE"
 
+# Modules shared with the web chat, from the same ref.
+mkdir -p "$STAGE/shared"
+while read -r file; do
+  [ -n "$file" ] && git show "$REF:web/src/$file" > "$STAGE/shared/$(basename "$file")"
+done < <(git show "$REF:deploy/static-space/shared-files.txt")
+
 # Space card, always from the working tree.
 cp deploy/static-space/README.md "$STAGE/README.md"
 
