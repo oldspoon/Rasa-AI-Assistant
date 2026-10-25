@@ -1,14 +1,8 @@
 import { useEffect, useState } from "react";
 import { K_CVD, K_THEME } from "../storage/keys.js";
+import { CVD_MODES, normalizeCvd } from "./cvdModes.js";
 
-// Colour-vision palettes (see index.css).
-export const CVD_MODES = [
-  { id: "off", label: "Off", hint: "default colours" },
-  { id: "protanopia", label: "Protanopia", hint: "red-blind · blue palette" },
-  { id: "deuteranopia", label: "Deuteranopia", hint: "green-blind · purple palette" },
-  { id: "tritanopia", label: "Tritanopia", hint: "blue-blind · red palette" },
-  { id: "achromatopsia", label: "Achromatopsia", hint: "no colour · greyscale" },
-];
+export { CVD_MODES };
 
 export const THEMES = [
   { id: "system", label: "System", icon: "fa-desktop" },
@@ -21,7 +15,7 @@ export function useAppearance() {
   const [themePref, setThemePref] = useState(
     () => localStorage.getItem(K_THEME) ?? "system"
   );
-  const [cvd, setCvd] = useState(() => localStorage.getItem(K_CVD) ?? "off");
+  const [cvd, setCvd] = useState(() => normalizeCvd(localStorage.getItem(K_CVD)));
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches
   );

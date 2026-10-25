@@ -97,13 +97,16 @@
   --focus: #e08a4d;
 }
 
-:root[data-cb="achromatopsia"] {
+/* Default: the achromatopsia (greyscale) palette. */
+:root[data-cb="default"],
+:root:not([data-cb]) {
   --accent: #333333;
   --accent-hover: #1f1f1f;
   --focus: #333333;
 }
 
-:root[data-theme="dark"][data-cb="achromatopsia"] {
+:root[data-theme="dark"][data-cb="default"],
+:root[data-theme="dark"]:not([data-cb]) {
   --accent: #d9d9d9;
   --accent-hover: #f0f0f0;
   --accent-contrast: #101010;
