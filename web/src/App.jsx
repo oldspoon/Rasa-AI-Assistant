@@ -31,8 +31,9 @@ export default function App() {
   });
   const auth = useAuth({ setUser, setInput, chat, voice, closeMenu });
 
+  const lastMessage = chat.messages[chat.messages.length - 1];
   const showQuickReplies =
-    user && !busy && chat.messages[chat.messages.length - 1]?.from === "bot";
+    user && !busy && lastMessage?.from === "bot" && !lastMessage.buttons?.length;
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -112,6 +113,7 @@ export default function App() {
                   busy={busy}
                   showQuickReplies={showQuickReplies}
                   onQuickReply={(q) => chat.sendMessage(q)}
+                  onChoose={(b) => chat.sendMessage(b.payload, { label: b.title })}
                   bottomRef={bottomRef}
                 />
 

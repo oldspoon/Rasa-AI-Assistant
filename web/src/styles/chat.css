@@ -163,3 +163,30 @@
   cursor: default;
 }
 
+
+/* Reply buttons under a bot message, with an icon on the left. */
+.reply-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -2px 0 6px;
+}
+
+.reply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.reply-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

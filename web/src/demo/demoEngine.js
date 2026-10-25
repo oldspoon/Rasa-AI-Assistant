@@ -20,6 +20,92 @@ export const STUDENTS = [
   { first: "Olivia", middle: "Faith", last: "White", campus: "Merchiston", type: "Lecture", day: "Friday", time: "12:00-14:00", subject: "Biology", room: "F69" },
 ];
 
+/* Unpaid parking charges: [first, last, licence plate, issued, fine in pence].
+   Same data as PARKING_ARREARS in action_server/database/populate_db.py.
+   The campus is always the student's own. */
+export const PARKING = [
+  ["Alice", "Johnson", "LB21 XQT", "2026-10-14 09:32", 6000],
+  ["Carol", "Williams", "SK19 DPN", "2026-10-09 13:05", 5000],
+  ["Emma", "Jones", "YH70 RMV", "2026-10-20 16:40", 7000],
+  ["Grace", "Miller", "EX68 HLC", "2026-10-02 08:15", 10000],
+  ["Isabella", "Wilson", "NU22 KBA", "2026-10-17 11:48", 6000],
+  ["Katie", "Taylor", "MA18 TZW", "2026-10-06 14:22", 5000],
+  ["Mia", "Thomas", "PO71 GFD", "2026-10-22 10:10", 6000],
+  ["Olivia", "White", "RV20 JSE", "2026-10-12 17:03", 7000],
+];
+
+// Buttons under the arrears message (the web chat adds a phone icon to the first).
+export const PARKING_BUTTONS = [
+  { title: "Pay by phone", payload: "/pay_by_phone" },
+  { title: "Visit the InfoDesk", payload: "/pay_at_infodesk" },
+];
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+// "2026-10-14 09:32" -> { year, month, day, time }
+function parseIssued(issued) {
+  const [date, time] = issued.split(" ");
+  const [year, month, day] = date.split("-").map(Number);
+  return { year, month, day, time };
+}
+
+function dateText(year, month, day) {
+  return `${day} ${MONTHS[month - 1]} ${year}`;
+}
+
+// One month after the charge was issued, clamped to the end of a short month.
+function payByDate(year, month, day) {
+  const nextMonth = (month % 12) + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const lastDay = new Date(Date.UTC(nextYear, nextMonth, 0)).getUTCDate();
+  return dateText(nextYear, nextMonth, Math.min(day, lastDay));
+}
+
+function pounds(pence) {
+  return `£${(pence / 100).toFixed(2)}`;
+}
+
+// Charges for one student, on the campus they attend.
+export function parkingFor(student) {
+  return PARKING.filter(([first, last]) => first === student.first && last === student.last).map(
+    ([, , plate, issued, pence]) => ({
+      plate,
+      issued,
+      pence,
+      location: `${student.campus} campus grounds`,
+    })
+  );
+}
+
+function describeArrear(arrear) {
+  const { year, month, day, time } = parseIssued(arrear.issued);
+  return [
+    `**Date:** ${dateText(year, month, day)}`,
+    `**Time:** ${time}`,
+    `**Vehicle:** ${arrear.plate}`,
+    `**Location:** ${arrear.location}`,
+    `**Fine owed:** ${pounds(arrear.pence)}`,
+    `**Pay by:** ${payByDate(year, month, day)}`,
+  ].join("\n");
+}
+
+export function arrearsMessage(student) {
+  const arrears = parkingFor(student);
+  if (!arrears.length) {
+    return `Hi ${student.first}! You have no parking arrears. You're all clear.`;
+  }
+  const noun = arrears.length === 1 ? "a parking charge" : `${arrears.length} parking charges`;
+  const blocks = arrears.map(describeArrear).join("\n\n");
+  return (
+    `Hi ${student.first}! You have ${noun} to pay:\n\n${blocks}\n\n` +
+    "You can pay up to a month after a charge was issued. " +
+    "After that, charges start to accrue. How would you like to pay?"
+  );
+}
+
 /* Reply templates (same wording as the live bot). */
 
 export const SAY = {
@@ -55,6 +141,10 @@ export const SAY = {
   thanks:
     "You're welcome! Let me know if you need anything else about your schedule.",
   goodbye: "Goodbye! Have a great session on campus!",
+  payByPhone:
+    "To pay by phone, call the parking payment line on **020 7946 0321**. Have your vehicle's licence plate and the date of the charge ready.",
+  visitInfoDesk:
+    "To pay in person, visit the **InfoDesk** on your campus. Bring your vehicle's licence plate and the date of the charge.",
   outOfScope:
     "I'm sorry, I can only help with campus attendance and schedule information. Please ask me something related to your timetable.",
   explain:
@@ -116,6 +206,9 @@ const RE = {
   time: /(what time|time is my|when is my|when does|runs from|start time|start and end)/,
   subject: /(subject|studying|module|course|activity)/,
   room: /\b(room|where am i|which room)\b/,
+  parking: /\b(parking|arrears?)\b/,
+  payPhone: /(pay|payment|call).*\bphone\b|\bphone\b.*(pay|payment)/,
+  infoDesk: /info ?desk|pay in person|pay at the desk/,
   filler: /^(ok|okay|cool|nice|hmm+|hm|yeah|sure|right|oh|ah|meh|k|np|got it)\.?$/,
 };
 
@@ -143,8 +236,13 @@ export function reply(text, student) {
   if (RE.thanks.test(t)) return { texts: [SAY.thanks], student };
   if (RE.greeting.test(t)) return { texts: [SAY.welcome], student };
 
+  // Payment choices after the arrears message (the buttons send /pay_by_phone and /pay_at_infodesk).
+  if (RE.payPhone.test(t)) return { texts: [SAY.payByPhone], student };
+  if (RE.infoDesk.test(t)) return { texts: [SAY.visitInfoDesk], student };
+
   // 4. Schedule questions: need a known student.
   const scheduleQuestion =
+    RE.parking.test(t) ||
     RE.details.test(t) ||
     RE.lecture.test(t) ||
     RE.practical.test(t) ||
@@ -158,6 +256,14 @@ export function reply(text, student) {
   }
 
   if (student) {
+    if (RE.parking.test(t)) {
+      const owes = parkingFor(student).length > 0;
+      return {
+        texts: [arrearsMessage(student)],
+        student,
+        buttons: owes ? PARKING_BUTTONS : undefined,
+      };
+    }
     if (RE.details.test(t)) {
       return { texts: SAY.fullSchedule(student), student };
     }

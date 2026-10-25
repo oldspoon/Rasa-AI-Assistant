@@ -20,19 +20,20 @@ export function useChat({ user, busy, setBusy, stopDictation, closeMenu }) {
   // One chat turn. hidden: no bubble. sender: overrides the conversation id.
   async function sendMessage(
     raw,
-    { hidden = false, sender: senderOverride, intro = false } = {}
+    { hidden = false, sender: senderOverride, intro = false, label } = {}
   ) {
     const message = raw.trim();
     if (!message || busy) return;
+    const shown = label ?? message; // buttons show their title, the bot gets the payload
     stopDictation(); // sending ends dictation
     closeMenu();
     const activeSender = senderOverride ?? sender;
 
     if (!hidden) {
-      setMessages((msgs) => [...msgs, { from: "user", text: message, ts: Date.now() }]);
+      setMessages((msgs) => [...msgs, { from: "user", text: shown, ts: Date.now() }]);
     }
     setBusy(true);
-    trackTurn(activeSender, "user", message, hidden ? { hidden: true } : undefined);
+    trackTurn(activeSender, "user", shown, hidden ? { hidden: true } : undefined);
     try {
       // Deliver a sign-in introduction that never reached the backend.
       const pending = pendingIntroRef.current;
@@ -58,7 +59,7 @@ export function useChat({ user, busy, setBusy, stopDictation, closeMenu }) {
       const ts = Date.now();
       setMessages((msgs) => [
         ...msgs,
-        ...replies.map((reply) => ({ from: "bot", text: reply.text, ts })),
+        ...replies.map((reply) => ({ from: "bot", text: reply.text, ts, buttons: reply.buttons })),
       ]);
       replies
         .filter((reply) => reply.text)
@@ -79,7 +80,12 @@ export function useChat({ user, busy, setBusy, stopDictation, closeMenu }) {
       const ts = Date.now();
       setMessages((msgs) => [
         ...msgs,
-        ...result.texts.map((text) => ({ from: "bot", text, ts })),
+        ...result.texts.map((text, i) => ({
+          from: "bot",
+          text,
+          ts,
+          buttons: i === result.texts.length - 1 ? result.buttons : undefined,
+        })),
       ]);
       result.texts.forEach((text) =>
         trackTurn(activeSender, "bot", text, { engine: "demo" })
