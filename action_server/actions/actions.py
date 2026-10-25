@@ -1,6 +1,7 @@
 """
 actions/actions.py
-Custom Rasa actions that connect to the SQLite attendance database.
+Custom Rasa actions that read student schedules from the attendance database
+(SQLite locally; Postgres when DATABASE_URL is set).
 
 Design note
 -----------
@@ -12,8 +13,6 @@ stories) make the ML policies under-confident and can trigger the default
 fallback message.
 """
 
-import os
-import sqlite3
 import logging
 from typing import Any, Text, Dict, List
 
@@ -21,27 +20,13 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet
 
+from database import db
+
 logger = logging.getLogger(__name__)
 
-_THIS_DIR  = os.path.dirname(os.path.abspath(__file__))
-_PROJ_ROOT = os.path.dirname(_THIS_DIR)
-DB_PATH    = os.path.join(_PROJ_ROOT, "database", "attendance.db")
 
-
-def _get_connection() -> sqlite3.Connection:
-    """Return a SQLite connection."""
-    if not os.path.exists(DB_PATH):
-        raise FileNotFoundError(
-            f"Attendance database not found at: {DB_PATH}\n"
-            "Please run:  python database/populate_db.py"
-        )
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def _fetch_student(first_name: str, last_name: str) -> sqlite3.Row | None:
-    """Query the DB for a student by first and last name."""
+def _fetch_student(first_name: str, last_name: str) -> dict | None:
+    """Query the attendance database for a student by first and last name."""
     sql = """
         SELECT *
         FROM   attendance
@@ -50,10 +35,7 @@ def _fetch_student(first_name: str, last_name: str) -> sqlite3.Row | None:
         LIMIT  1
     """
     try:
-        with _get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(sql, (first_name.strip(), last_name.strip()))
-            return cursor.fetchone()
+        return db.fetch_one(sql, (first_name.strip(), last_name.strip()))
     except Exception as exc:
         logger.error("Database error in _fetch_student: %s", exc)
         return None
@@ -79,7 +61,7 @@ def _get_full_name(tracker: Tracker) -> tuple[str, str]:
 
 def _student_or_error(
     dispatcher: CollectingDispatcher, tracker: Tracker
-) -> sqlite3.Row | None:
+) -> dict | None:
     """
     Return the student row for the current conversation, or None after
     dispatching a helpful message (ask for name / name not found).
