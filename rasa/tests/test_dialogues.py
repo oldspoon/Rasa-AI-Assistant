@@ -1,15 +1,6 @@
-"""Dialogue tests - one per story in ``data/stories/`` (19 total).
-
-Each test replays a minimal user script against the live bot over the Rasa
-REST webhook (http://localhost:5005) and checks the key facts in the replies.
-The custom actions that read the SQLite database run in the action server
-(http://localhost:5055), so BOTH servers must be running.
-
-Run from this folder (``rasa/``):
-
-    ..\\venv\\Scripts\\python.exe -m pytest tests\\test_dialogues.py -v
-
-Expected result: 19 passed.
+"""
+Dialogue tests: one per story in data/stories/, run against the live servers.
+Needs the Rasa server (localhost:5005) and the action server (localhost:5055).
 """
 import uuid
 
@@ -23,7 +14,7 @@ TIMEOUT = 30
 
 
 def _send(sender: str, message: str) -> list:
-    """POST one user message; return the bot's reply texts for that turn."""
+    """POST one message; return the bot's reply texts."""
     response = requests.post(
         RASA_WEBHOOK, json={"sender": sender, "message": message}, timeout=TIMEOUT
     )
@@ -32,13 +23,13 @@ def _send(sender: str, message: str) -> list:
 
 
 def converse(prompts: list) -> list:
-    """Run a fresh conversation (unique sender); replies grouped per turn."""
+    """Start a fresh conversation; replies grouped per turn."""
     sender = f"pytest-{uuid.uuid4().hex}"
     return [_send(sender, prompt) for prompt in prompts]
 
 
 def assert_reply(turns: list, turn: int, *expected: str) -> None:
-    """Fail unless every expected substring shows up in that turn's reply."""
+    """Fail unless each expected substring is in that turn."""
     text = "\n".join(turns[turn])
     missing = [fragment for fragment in expected if fragment not in text]
     assert not missing, (
@@ -50,7 +41,7 @@ def assert_reply(turns: list, turn: int, *expected: str) -> None:
 
 @pytest.fixture(scope="session", autouse=True)
 def _servers_must_be_running() -> None:
-    """Fail fast with instructions if the bot or the action server is down."""
+    """Fail fast if a server is down."""
     for label, url in (
         ("Rasa server (REST API)", f"{RASA_API}/"),
         ("action server", ACTIONS_HEALTH),
@@ -66,9 +57,7 @@ def _servers_must_be_running() -> None:
             )
 
 
-# --------------------------------------------------------------------------
-# One test per file in data/stories/ - same order as the directory listing.
-# --------------------------------------------------------------------------
+# One test per story in data/stories/, in directory order.
 
 
 def test_ask_both_lecture_and_practical_days() -> None:

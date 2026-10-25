@@ -79,9 +79,7 @@ nlu:
     - hi, my name is [Mia](first_name) [Thomas](last_name)
     - hey it's [Noah](first_name) [Jackson](last_name)
     - good morning, [Olivia](first_name) [White](last_name) here
-    # Name-shaped examples that are NOT in the database: they cover the
-    # "not found → retry with the real name" flow and help DIET extract
-    # arbitrary names instead of only the 15 seeded students.
+    # Unknown names: teaches the retry flow and name extraction.
     - my name is [John](first_name) [Doe](last_name)
     - I am [Jane](first_name) [Doe](last_name)
     - my name is [Sam](first_name) [Wright](last_name)
@@ -216,7 +214,7 @@ nlu:
     - play some music
     - what is the news today
     - I need help with something else
-    # Nonsense input should end up here instead of a random intent
+    # Gibberish input.
     - asdfghjkl
     - qwerty zxcvb
     - blah blah blah

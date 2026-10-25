@@ -1,23 +1,11 @@
 """
-show_conversation.py
-Debugging view for the conversations tracked by the bot.
+Debug viewer for bot conversations: list recent ones or replay one by UUID.
 
-Every conversation is stored keyed by its UUID - the sender id the web chat
-generates per conversation (RASA_TRACKER_STORE_URL, see tracker_store.py).
-This script lists recent conversations and replays a single one.
+Usage (repository root):
+    venv\\Scripts\\python.exe rasa\\show_conversation.py --list [--neon]
+    venv\\Scripts\\python.exe rasa\\show_conversation.py <uuid> [--url URL | --neon]
 
-Usage (from the repository root, with the Rasa virtual environment):
-
-    venv\\Scripts\\python.exe rasa\\show_conversation.py --list
-    venv\\Scripts\\python.exe rasa\\show_conversation.py <uuid>
-    venv\\Scripts\\python.exe rasa\\show_conversation.py --list --neon
-    venv\\Scripts\\python.exe rasa\\show_conversation.py <uuid> --url <SQLAlchemy URL>
-
-Where the store is:
-    1. --url            the given SQLAlchemy URL
-    2. --neon           DATABASE_URL_UNPOOLED (or DATABASE_URL) from .env.local
-    3. RASA_TRACKER_STORE_URL environment variable
-    4. otherwise        the local file rasa/logs/trackers.db (dev default)
+Store lookup: --url, then --neon, then RASA_TRACKER_STORE_URL, then rasa/logs/trackers.db.
 """
 
 import argparse
@@ -42,7 +30,7 @@ except ImportError:
 
 
 def load_env_local() -> dict:
-    """KEY=VALUE pairs from the repository's .env.local (if present)."""
+    """Load KEY=VALUE pairs from .env.local, if present."""
     values = {}
     env_file = REPO_ROOT / ".env.local"
     if not env_file.exists():
@@ -69,7 +57,7 @@ def resolve_url(args) -> str:
 
 
 def describe_url(url: str) -> str:
-    """URL that is safe to print (password removed)."""
+    """URL with the password removed, safe to print."""
     try:
         return sa.engine.make_url(url).render_as_string(hide_password=True)
     except Exception:
@@ -96,7 +84,7 @@ def _sqlite_file(url: str) -> Path | None:
 def _engine(url: str):
     kwargs = {}
     if not url.startswith("sqlite"):
-        # Never hang on an unreachable database.
+        # Fail fast on an unreachable database.
         kwargs["connect_args"] = {"connect_timeout": 10}
     return sa.create_engine(url, **kwargs)
 

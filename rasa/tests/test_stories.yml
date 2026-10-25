@@ -1,24 +1,12 @@
 version: "3.1"
 
-# End-to-end test stories:  rasa test core --e2e --stories tests\test_stories.yml
-#
-# How these run:
-# - Each `user` line is sent through the real NLU model; the predicted intent
-#   and entities are checked against the values here. Entities are written
-#   inline in the user text, e.g. "[Alice](first_name)" — that is the format
-#   the end-to-end story reader uses to attach gold entities to a user turn.
-# - Custom actions are NOT executed by the runner: it only checks that the
-#   dialogue policies predict the correct action at every step.
-# - `slot_was_set` mirrors the name slots that Rasa fills automatically at
-#   runtime from the extracted entities, and the `action_listen` steps mirror
-#   the implicit listens that are part of every training story. Together they
-#   keep the evaluated conversation state identical to the trained one.
+# End-to-end stories. Run: rasa test core --e2e --stories tests/test_stories.yml
+# Entities are inline, e.g. [Alice](first_name). Custom actions are not run;
+# Checks intents and actions only. slot_was_set mirrors runtime name slots.
 
 stories:
 
-# ---------------------------------------------------------------------------
-# Example conversation 1 — Alice Johnson (Lecture student, full happy path)
-# ---------------------------------------------------------------------------
+# Alice Johnson: lecture student, happy path
 - story: e2e - conversation 1 - Alice Johnson full lecture flow
   steps:
     - action: action_listen
@@ -61,9 +49,7 @@ stories:
       intent: goodbye
     - action: utter_goodbye
 
-# ---------------------------------------------------------------------------
-# Example conversation 2 — Bob Smith (Practical student, full happy path)
-# ---------------------------------------------------------------------------
+# Bob Smith: practical student, happy path
 - story: e2e - conversation 2 - Bob Smith full practical flow
   steps:
     - action: action_listen
@@ -98,9 +84,7 @@ stories:
       intent: goodbye
     - action: utter_goodbye
 
-# ---------------------------------------------------------------------------
-# Example conversation 3 — unknown student, then recovery with a real name
-# ---------------------------------------------------------------------------
+# Unknown student, then a real name
 - story: e2e - conversation 3 - unknown student recovery
   steps:
     - action: action_listen
@@ -134,9 +118,7 @@ stories:
       intent: goodbye
     - action: utter_goodbye
 
-# ---------------------------------------------------------------------------
-# Extra coverage — guard rails
-# ---------------------------------------------------------------------------
+# Guard rails
 - story: e2e - extra - asks schedule without introducing (guard)
   steps:
     - action: action_listen

@@ -1,17 +1,9 @@
-# endpoints.yml
-# Where the action server lives, and where conversations are stored.
+# Action server URL and conversation storage.
 
 action_endpoint:
   url: "http://localhost:5055/webhook"
 
-# Conversation logging (see tracker_store.py): every conversation is kept in
-# a SQL database keyed by its sender id - the UUID the web chat generates
-# per conversation. The store reads its connection URL from the
-# RASA_TRACKER_STORE_URL environment variable:
-#
-#   local development   -> the SQLite file rasa/logs/trackers.db (default)
-#   hosted (HF Space)   -> the container sets it to the Neon Postgres URL
-#
-# Inspect stored conversations with:  python show_conversation.py --list
+# Conversations go to RASA_TRACKER_STORE_URL, else rasa/logs/trackers.db.
+# Replay one with: python show_conversation.py <uuid>
 tracker_store:
   type: "tracker_store.ConversationSQLTrackerStore"
