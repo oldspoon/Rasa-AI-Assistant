@@ -19,7 +19,7 @@ jobs:
       - name: Wake the Rasa Space and report its status
         run: |
           code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 120 --retry 2 --retry-delay 20 \
-            https://oldspoon-rasa-attendance-bot.hf.space/version || true)
+            https://oldspoon-rasa-attendance-bot.hf.space/ || true)
           echo "Rasa Space responded with HTTP $code"
 
   heartbeat:

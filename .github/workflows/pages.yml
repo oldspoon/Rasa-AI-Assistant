@@ -29,7 +29,7 @@ jobs:
         env:
           VITE_BASE: /Rasa-AI-Assistant/
           VITE_RASA_URL: https://oldspoon-rasa-attendance-bot.hf.space/webhooks/rest/webhook
-          VITE_AUTH_URL: https://br-empty-violet-b70xbc42-login.compute.c-13.us-east-1.aws.neon.tech/
+          VITE_AUTH_URL: https://oldspoon-rasa-attendance-bot.hf.space/auth/login
         run: |
           npm install
           npm run build

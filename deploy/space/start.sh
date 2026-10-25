@@ -20,4 +20,7 @@ elif [ -n "${DATABASE_URL:-}" ]; then
     export RASA_TRACKER_STORE_URL="$DATABASE_URL"
 fi
 
-python -m rasa run --enable-api --cors "*" --interface 0.0.0.0 --port 7860
+# No --enable-api: the open /conversations/... endpoints stay off. The chat
+# webhook and /auth/login still work. Set the AUTH_SECRET Space secret so logins
+# survive a restart.
+python -m rasa run --cors "*" --interface 0.0.0.0 --port 7860
