@@ -128,13 +128,75 @@ const AUTH_URL =
     ? import.meta.env.VITE_RASA_URL.replace(/\/webhooks\/rest\/webhook\/?$/, "")
     : "/api") + "/auth/login");
 
-// Voice input uses the browser's built-in speech recognition (Chrome, Edge
-// and Safari ship it; Firefox does not, so the mic button stays hidden
-// there). The transcript streams into the message box for review; English by
-// default, adjustable at build time via VITE_SPEECH_LANG (e.g. "en-GB").
+// Voice input. Preferred: the browser's built-in speech recognition (Chrome,
+// Edge, Safari). Where that service is missing or dead (Opera GX exposes the
+// API but never fires an event; Firefox has no API), the mic records with
+// MediaRecorder and transcribes on-device with a small Whisper model
+// (transformers.js) - no account, no server. The transcript lands in the
+// message box for review; VITE_SPEECH_LANG tunes the built-in recognizer.
 const SpeechRecognitionClass =
   window.SpeechRecognition || window.webkitSpeechRecognition || null;
 const SPEECH_LANG = import.meta.env.VITE_SPEECH_LANG ?? "en-US";
+
+// Opera's Chromium builds ship no speech service, so go straight to the
+// on-device model there instead of showing a dead button.
+const IS_OPERA = /OPR\//.test(navigator.userAgent);
+const CAN_WHISPER =
+  typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+const BROWSER_SPEECH_OK = !!SpeechRecognitionClass && !IS_OPERA;
+
+// English-only, quantized (~50 MB; the browser caches it after first use).
+const WHISPER_MODEL = "onnx-community/whisper-base.en";
+
+// The model is only needed for the fallback, so it is loaded on first use
+// (a separate bundle chunk, fetched lazily) and then kept in memory.
+let whisperAsrPromise = null;
+
+function loadWhisperModel(onProgress) {
+  if (!whisperAsrPromise) {
+    whisperAsrPromise = (async () => {
+      const { pipeline, env } = await import("@huggingface/transformers");
+      env.allowLocalModels = false; // fetch the model from the Hub
+      return pipeline("automatic-speech-recognition", WHISPER_MODEL, {
+        dtype: "q8",
+        device: "wasm",
+        progress_callback: (p) => {
+          if (onProgress && p?.status === "progress" && typeof p.progress === "number") {
+            onProgress(Math.round(p.progress));
+          }
+        },
+      });
+    })().catch((err) => {
+      whisperAsrPromise = null; // allow a retry on the next tap
+      throw err;
+    });
+  }
+  return whisperAsrPromise;
+}
+
+// Decode a MediaRecorder blob (webm/opus, ogg or mp4) and resample it to the
+// 16 kHz mono samples the Whisper pipeline expects.
+async function blobToWhisperAudio(blob) {
+  const bytes = await blob.arrayBuffer();
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AudioCtx();
+  let decoded;
+  try {
+    decoded = await ctx.decodeAudioData(bytes);
+  } finally {
+    ctx.close?.();
+  }
+  const rate = 16000;
+  const length = Math.max(1, Math.ceil(decoded.duration * rate));
+  const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const off = new OfflineCtx(1, length, rate);
+  const source = off.createBufferSource();
+  source.buffer = decoded;
+  source.connect(off.destination);
+  source.start();
+  const rendered = await off.startRendering();
+  return rendered.getChannelData(0);
+}
 
 // The bot's replies use **bold** - render just that bit of markdown.
 function RichText({ text }) {
@@ -214,6 +276,17 @@ export default function App() {
   const speechActiveRef = useRef(false); // recognition is running / may write
   const speechBaseRef = useRef(""); // text already typed when the mic starts
   const speechHintTimerRef = useRef(null);
+  // "browser" = built-in speech service, "whisper" = on-device model,
+  // "none" = this browser has no usable voice input at all.
+  const [voiceMode, setVoiceMode] = useState(
+    BROWSER_SPEECH_OK ? "browser" : CAN_WHISPER ? "whisper" : "none"
+  );
+  const [transcribing, setTranscribing] = useState(false);
+  const watchdogRef = useRef(null);
+  const recorderRef = useRef(null);
+  const recordChunksRef = useRef([]);
+  const recordStreamRef = useRef(null);
+  const recordTimerRef = useRef(null);
 
   const quickReplies = BASE_REPLIES;
   const showQuickReplies =
@@ -242,7 +315,7 @@ export default function App() {
     };
   }, [menuOpen]);
 
-  // --- voice input (browser SpeechRecognition; English) ---
+  // --- voice input (built-in speech, with an on-device model fallback) ---
   function showSpeechHint(message) {
     setSpeechHint(message);
     clearTimeout(speechHintTimerRef.current);
@@ -252,6 +325,7 @@ export default function App() {
   // stop() throws when the recognizer is not running - a no-op for us.
   function stopListening() {
     speechActiveRef.current = false; // late results must not rewrite the box
+    clearTimeout(watchdogRef.current);
     try {
       recognitionRef.current?.stop();
     } catch {
@@ -259,7 +333,148 @@ export default function App() {
     }
   }
 
+  // Switch to the on-device model (Opera GX ships a speech API that never
+  // fires an event; some networks cannot reach the service either).
+  function useWhisper(message) {
+    if (!CAN_WHISPER) {
+      showSpeechHint(
+        "Voice input doesn't work in this browser - please try Chrome, Edge or Safari, or type your question."
+      );
+      return;
+    }
+    setVoiceMode("whisper");
+    if (message) showSpeechHint(message);
+  }
+
+  // Some Chromium builds expose the speech API but a start() never produces a
+  // single event: give the service a moment once the microphone is already
+  // allowed (a permission prompt is its own UI and takes its time).
+  function armSpeechWatchdog() {
+    const arm = (state) => {
+      if (state !== "granted") return;
+      clearTimeout(watchdogRef.current);
+      watchdogRef.current = setTimeout(() => {
+        if (!speechActiveRef.current) return;
+        speechActiveRef.current = false;
+        try {
+          recognitionRef.current?.abort();
+        } catch {
+          /* not running */
+        }
+        setListening(false);
+        useWhisper(
+          "This browser's speech service isn't available - switched to on-device voice. Tap the mic and speak."
+        );
+      }, 2500);
+    };
+    try {
+      navigator.permissions?.query?.({ name: "microphone" }).then(
+        (p) => arm(p?.state),
+        () => {}
+      );
+    } catch {
+      /* Permissions API unsupported - the error handler covers it */
+    }
+  }
+
+  async function startWhisperRecording() {
+    if (transcribing) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const types = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/mp4",
+      ];
+      const mimeType =
+        typeof MediaRecorder.isTypeSupported === "function"
+          ? types.find((t) => MediaRecorder.isTypeSupported(t))
+          : undefined;
+      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorderRef.current = rec;
+      recordChunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size) recordChunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        recordStreamRef.current = null;
+        transcribeRecording(
+          new Blob(recordChunksRef.current, { type: rec.mimeType || "audio/webm" })
+        );
+      };
+      recordStreamRef.current = stream;
+      speechBaseRef.current = input.trim();
+      // Fetch and warm up the small speech model while the user speaks.
+      loadWhisperModel((pct) =>
+        showSpeechHint(
+          pct >= 100
+            ? "Preparing the on-device speech model…"
+            : `Downloading the on-device speech model… ${pct}%`
+        )
+      ).catch(() => {});
+      rec.start();
+      setListening(true);
+      clearTimeout(recordTimerRef.current);
+      recordTimerRef.current = setTimeout(stopWhisperRecording, 30000);
+    } catch (err) {
+      showSpeechHint(
+        err?.name === "NotAllowedError"
+          ? "Microphone access is blocked - allow it for this site in your browser and try again."
+          : "No microphone was found on this device."
+      );
+    }
+  }
+
+  function stopWhisperRecording() {
+    clearTimeout(recordTimerRef.current);
+    const rec = recorderRef.current;
+    recorderRef.current = null;
+    if (rec && rec.state !== "inactive") rec.stop(); // -> transcribeRecording
+    setListening(false);
+  }
+
+  async function transcribeRecording(blob) {
+    if (!blob.size) {
+      showSpeechHint("I didn't hear anything - tap the mic and try again.");
+      return;
+    }
+    setTranscribing(true);
+    showSpeechHint("Transcribing…");
+    try {
+      const asr = await loadWhisperModel();
+      const samples = await blobToWhisperAudio(blob);
+      const result = await asr(samples);
+      const text = String(result?.text ?? "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!text) {
+        showSpeechHint("I didn't hear anything - tap the mic and try again.");
+        return;
+      }
+      const base = speechBaseRef.current;
+      setInput(base ? `${base} ${text}` : text);
+      clearTimeout(speechHintTimerRef.current);
+      setSpeechHint("");
+    } catch (err) {
+      console.warn("[attendance-bot] on-device transcription failed:", err);
+      showSpeechHint(
+        "Voice transcription didn't work - check your connection and try again."
+      );
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
   function toggleListening() {
+    if (voiceMode === "whisper") {
+      if (transcribing) return;
+      if (listening) stopWhisperRecording();
+      else if (!busy) startWhisperRecording();
+      return;
+    }
+    if (voiceMode !== "browser") return;
     if (listening) {
       stopListening();
       return;
@@ -269,6 +484,7 @@ export default function App() {
     speechActiveRef.current = true;
     try {
       recognitionRef.current.start();
+      armSpeechWatchdog();
     } catch {
       speechActiveRef.current = false;
       /* already running */
@@ -276,14 +492,17 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!SpeechRecognitionClass) return;
+    if (!BROWSER_SPEECH_OK) return;
     const rec = new SpeechRecognitionClass();
     rec.lang = SPEECH_LANG;
     rec.interimResults = true; // stream words into the box while speaking
     rec.continuous = false; // one utterance per tap
     rec.maxAlternatives = 1;
 
-    rec.onstart = () => setListening(true);
+    rec.onstart = () => {
+      clearTimeout(watchdogRef.current);
+      setListening(true);
+    };
     rec.onresult = (event) => {
       if (!speechActiveRef.current) return;
       let finalText = "";
@@ -298,14 +517,19 @@ export default function App() {
     };
     rec.onerror = (event) => {
       if (event.error === "aborted") return; // we stopped it on purpose
+      clearTimeout(watchdogRef.current);
+      if (event.error === "network" || event.error === "service-not-allowed") {
+        // The built-in service is unreachable here - use the on-device model.
+        useWhisper(
+          "This browser's speech service isn't available - switched to on-device voice. Tap the mic and speak."
+        );
+        return;
+      }
       const hints = {
         "not-allowed":
           "Microphone access is blocked - allow it for this site in your browser and try again.",
-        "service-not-allowed": "Speech recognition is blocked in this browser.",
         "no-speech": "I didn't hear anything - tap the mic and try again.",
         "audio-capture": "No microphone was found on this device.",
-        network:
-          "Speech recognition needs a network connection - check it and try again.",
       };
       showSpeechHint(
         hints[event.error] || "Voice input didn't work - please try again."
@@ -313,6 +537,7 @@ export default function App() {
     };
     rec.onend = () => {
       speechActiveRef.current = false;
+      clearTimeout(watchdogRef.current);
       setListening(false);
     };
     recognitionRef.current = rec;
@@ -324,6 +549,7 @@ export default function App() {
         /* not running */
       }
       recognitionRef.current = null;
+      clearTimeout(watchdogRef.current);
       clearTimeout(speechHintTimerRef.current);
     };
   }, []);
@@ -832,31 +1058,45 @@ export default function App() {
                   <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={listening ? "Listening…" : "Message"}
+                    placeholder={
+                      transcribing
+                        ? "Transcribing…"
+                        : listening
+                          ? "Listening…"
+                          : "Message"
+                    }
                     aria-label="Message"
                     autoFocus
                   />
-                  {SpeechRecognitionClass && (
+                  {voiceMode !== "none" && (
                     <button
                       type="button"
                       className={`mic-btn${listening ? " listening" : ""}`}
                       aria-label={
-                        listening
-                          ? "Stop voice input"
-                          : "Speak your question (English)"
+                        transcribing
+                          ? "Transcribing your speech"
+                          : listening
+                            ? "Stop voice input"
+                            : "Speak your question (English)"
                       }
                       aria-pressed={listening}
                       title={
-                        listening
-                          ? "Stop listening"
-                          : "Speak your question (English)"
+                        transcribing
+                          ? "Transcribing…"
+                          : listening
+                            ? "Stop listening"
+                            : "Speak your question (English)"
                       }
                       onClick={toggleListening}
-                      disabled={busy}
+                      disabled={busy || transcribing}
                     >
                       <i
                         className={`fa-solid ${
-                          listening ? "fa-microphone-lines" : "fa-microphone"
+                          transcribing
+                            ? "fa-spinner fa-spin"
+                            : listening
+                              ? "fa-microphone-lines"
+                              : "fa-microphone"
                         }`}
                         aria-hidden="true"
                       />
