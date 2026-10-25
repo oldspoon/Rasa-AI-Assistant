@@ -1,0 +1,21 @@
+/* Responsive */
+@media (max-width: 960px) {
+  .sidebar {
+    display: none;
+  }
+  .content {
+    padding: 0 18px;
+  }
+  .topbar {
+    padding: 0 12px;
+  }
+  .page-title {
+    font-size: 1.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-chip {
+    display: none;
+  }
+}

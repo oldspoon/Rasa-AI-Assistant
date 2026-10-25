@@ -1,0 +1,38 @@
+/* Top bar: dark in both themes. */
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 48px;
+  padding: 0 20px;
+  background: var(--topbar);
+  color: var(--topbar-text);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.brand-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.brand-chip {
+  padding: 2px 9px;
+  border: 1px solid #48484a;
+  border-radius: 999px;
+  color: var(--topbar-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+

@@ -1,0 +1,113 @@
+/* Design tokens: palette, type and spacing. */
+:root {
+  color-scheme: light;
+
+  --bg: #fbfbfd;
+  --content-bg: #ffffff;
+  --panel: #ffffff;
+  --hairline: #d2d2d7;
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --surface-2: #f5f5f7;
+  --hover: #f2f2f4;
+
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-contrast: #ffffff;
+  --bubble-user-text: #ffffff;
+  --focus: #0071e3;
+
+  --input-bg: #ffffff;
+  --input-border: #d2d2d7;
+  --chip-bg: #ffffff;
+  --chip-border: #d2d2d7;
+  --send-disabled: #e8e8ed;
+
+  --topbar: #1d1d1f;
+  --topbar-text: #f5f5f7;
+  --topbar-muted: #a1a1a6;
+  --topbar-hover: rgba(255, 255, 255, 0.14);
+
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+
+  --font-sans: "Public Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --content-bg: #000000;
+  --panel: #1d1d1f;
+  --hairline: #38383a;
+  --text: #f5f5f7;
+  --muted: #86868b;
+  --surface-2: #1d1d1f;
+  --hover: #2c2c2e;
+
+  --accent: #0071e3;
+  --accent-hover: #1a83e8;
+  --accent-contrast: #ffffff;
+  --bubble-user-text: #ffffff;
+  --focus: #4da3ff;
+
+  --input-bg: #1d1d1f;
+  --input-border: #38383a;
+  --chip-bg: #1d1d1f;
+  --chip-border: #38383a;
+  --send-disabled: #2c2c2e;
+
+  --topbar: #1d1d1f;
+  --topbar-text: #f5f5f7;
+  --topbar-muted: #a1a1a6;
+  --topbar-hover: rgba(255, 255, 255, 0.14);
+
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* colour-blind-safe palettes */
+:root[data-cb="protanopia"] {
+  --accent: #0072b2;
+  --accent-hover: #015f95;
+  --focus: #0072b2;
+}
+
+:root[data-theme="dark"][data-cb="protanopia"] {
+  --focus: #4da3d9;
+}
+
+:root[data-cb="deuteranopia"] {
+  --accent: #6a4c93;
+  --accent-hover: #593f7c;
+  --focus: #6a4c93;
+}
+
+:root[data-theme="dark"][data-cb="deuteranopia"] {
+  --focus: #a98fd0;
+}
+
+:root[data-cb="tritanopia"] {
+  --accent: #b34700;
+  --accent-hover: #993d00;
+  --focus: #b34700;
+}
+
+:root[data-theme="dark"][data-cb="tritanopia"] {
+  --focus: #e08a4d;
+}
+
+:root[data-cb="achromatopsia"] {
+  --accent: #333333;
+  --accent-hover: #1f1f1f;
+  --focus: #333333;
+}
+
+:root[data-theme="dark"][data-cb="achromatopsia"] {
+  --accent: #d9d9d9;
+  --accent-hover: #f0f0f0;
+  --accent-contrast: #101010;
+  --bubble-user-text: #101010;
+  --focus: #ffffff;
+}
+

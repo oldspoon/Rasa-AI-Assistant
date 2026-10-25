@@ -1,0 +1,242 @@
+/* Options menu: appearance, actions, conversation id. */
+.menu-wrap {
+  position: relative;
+}
+
+.top-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--topbar-text);
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.top-icon-btn:hover {
+  background: var(--topbar-hover);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 20;
+  width: min(290px, calc(100vw - 24px));
+  padding: 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  animation: rise 0.15s ease-out;
+}
+
+.menu-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.menu-label i {
+  color: var(--accent);
+  font-size: 0.7rem;
+}
+
+.segmented {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.segmented button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0 7px;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.segmented button i {
+  font-size: 0.85rem;
+}
+
+.segmented button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.cvd {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cvd-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.cvd-option::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--input-border);
+  border-radius: 50%;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.cvd-option:hover {
+  border-color: var(--accent);
+}
+
+.cvd-option[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+
+.cvd-option[aria-pressed="true"]::before {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 3px var(--panel);
+}
+
+.cvd-label {
+  flex: 1;
+  font-size: 0.88rem;
+}
+
+.cvd-option[aria-pressed="true"] .cvd-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.cvd-hint {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.menu hr {
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  margin: 10px 0;
+}
+
+.menu-action {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.menu-action i {
+  color: var(--muted);
+}
+
+.menu-action:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--accent);
+}
+
+.menu-action:hover:not(:disabled) i {
+  color: var(--accent);
+}
+
+.menu-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Conversation id, for tracing a chat in the logs. */
+.conv-id {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.conv-id code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 7px 9px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+}
+
+.conv-copy {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.conv-copy:hover,
+.conv-copy.copied {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.conv-hint {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+

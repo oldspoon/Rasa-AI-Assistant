@@ -1,0 +1,48 @@
+/* Focus + motion */
+.top-icon-btn:focus-visible,
+.nav-item:focus-visible,
+.segmented button:focus-visible,
+.cvd-option:focus-visible,
+.menu-action:focus-visible,
+.conv-copy:focus-visible,
+.chip:focus-visible,
+.composer input:focus-visible,
+.mic-btn:focus-visible,
+.send-btn:focus-visible,
+.login-form input:focus-visible,
+.login-submit:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes blink {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble,
+  .menu {
+    animation: none;
+  }
+  .dot {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
