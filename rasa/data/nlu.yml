@@ -202,6 +202,27 @@ nlu:
     - give me a full overview of my sessions
     - what sessions do I have and when
 
+- intent: ask_explain
+  examples: |
+    - what can you do
+    - what are you
+    - who are you
+    - what is this bot
+    - what is this chatbot
+    - what is this system
+    - what are you used for
+    - what is this chatbot for
+    - how can you help me
+    - how do I use this bot
+    - how can I interact with you
+    - what kind of questions can I ask
+    - what can I ask you
+    - explain what you do
+    - tell me about yourself
+    - how does this work
+    - help
+    - help me
+
 - intent: out_of_scope
   examples: |
     - what is the weather like
@@ -214,7 +235,6 @@ nlu:
     - play some music
     - what is the news today
     - I need help with something else
-    # Gibberish input.
     - asdfghjkl
     - qwerty zxcvb
     - blah blah blah
@@ -236,3 +256,52 @@ nlu:
     - okay, thank you
     - thank you very much
     - much appreciated
+
+- intent: ask_parking_arrears
+  examples: |
+    - do I have any parking arrears
+    - check my parking arrears
+    - do I owe any parking fines
+    - do I have a parking fine
+    - any parking tickets
+    - have I got any parking charges
+    - parking arrears
+    - what parking fines do I owe
+    - show my parking fines
+    - is there a parking charge on my account
+    - do I have unpaid parking charges
+    - how much do I owe for parking
+    - did I get a parking ticket
+    - check my parking fines
+    - I want to check my parking arrears
+    - any outstanding parking fines
+    - what do I owe for parking
+    - am I in parking arrears
+    - have I been fined for parking
+    - do I owe anything for parking on campus
+
+- intent: pay_by_phone
+  examples: |
+    - pay by phone
+    - I want to pay by phone
+    - pay over the phone
+    - can I pay by phone
+    - phone payment
+    - I will pay by phone
+    - how do I pay by phone
+    - pay my fine by phone
+    - I would like to pay by phone
+    - call to pay
+
+- intent: pay_at_infodesk
+  examples: |
+    - visit the InfoDesk
+    - I will visit the InfoDesk
+    - pay at the InfoDesk
+    - pay in person
+    - I want to pay at the info desk
+    - can I pay at the InfoDesk
+    - go to the info desk
+    - pay my fine in person
+    - I would like to pay at the InfoDesk
+    - where is the InfoDesk

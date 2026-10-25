@@ -12,6 +12,10 @@ intents:
   - ask_subject
   - ask_room
   - ask_all_details
+  - ask_explain
+  - ask_parking_arrears
+  - pay_by_phone
+  - pay_at_infodesk
   - out_of_scope
 
 entities:
@@ -33,7 +37,7 @@ slots:
 
 responses:
   utter_greet:
-    - text: "Hello! Welcome to the Campus Attendance System. Ask me about your schedule - lecture or practical days, campus, time, subject or room. If I don't know you yet, tell me your first and last name (e.g. 'My name is Alice Johnson')."
+    - text: "Hello! I'm Octopi, your Campus Attendance Assistant. Welcome to the Campus Attendance System. Ask me about your schedule - lecture or practical days, campus, time, subject or room. If I don't know you yet, tell me your first and last name (e.g. 'My name is Alice Johnson')."
 
   utter_goodbye:
     - text: "Goodbye! Have a great session on campus!"
@@ -56,8 +60,20 @@ responses:
   utter_out_of_scope:
     - text: "I'm sorry, I can only help with campus attendance and schedule information. Please ask me something related to your timetable."
 
+  utter_explain:
+    - text: "I'm Octopi, the Campus Attendance Assistant - a chatbot that looks up your attendance records. You can ask me about your lecture or practical days, campus, time, subject and room. To get started, tell me your first and last name (e.g. 'My name is Alice Johnson'), then just type or dictate a question like 'What days do I have lectures?', 'What time is my practical?', or 'Give me all my schedule details'."
+
   utter_default:
     - text: "I didn't quite understand that. You can ask me about your lecture or practical days, campus location, time, subject, or room number."
+
+  utter_pay_by_phone:
+    - text: "To pay by phone, call the parking payment line on **020 7946 0321**. Have your vehicle's licence plate and the date of the charge ready."
+
+  utter_visit_infodesk:
+    - text: "To pay in person, visit the **InfoDesk** on your campus. Bring your vehicle's licence plate and the date of the charge."
+
+  utter_parking_unavailable:
+    - text: "I couldn't check your parking arrears just now. Please try again in a moment."
 
 actions:
   - action_lookup_student
@@ -68,6 +84,7 @@ actions:
   - action_answer_subject
   - action_answer_room
   - action_answer_all_details
+  - action_check_parking_arrears
 
 session_config:
   session_expiration_time: 60

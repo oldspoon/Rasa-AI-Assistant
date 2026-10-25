@@ -132,3 +132,54 @@ stories:
     - user: "Tell me a joke"
       intent: out_of_scope
     - action: utter_out_of_scope
+
+- story: e2e - extra - asks what the bot can do
+  steps:
+    - action: action_listen
+    - user: "What can you do?"
+      intent: ask_explain
+    - action: utter_explain
+
+# Parking arrears
+- story: e2e - parking arrears - Alice Johnson pays by phone
+  steps:
+    - action: action_listen
+    - user: "My name is [Alice](first_name) [Johnson](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Alice"
+        - last_name: "Johnson"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "Do I have any parking arrears?"
+      intent: ask_parking_arrears
+    - action: action_check_parking_arrears
+    - action: action_listen
+    - user: "I want to pay by phone"
+      intent: pay_by_phone
+    - action: utter_pay_by_phone
+
+- story: e2e - parking arrears - Emma Jones pays at the InfoDesk
+  steps:
+    - action: action_listen
+    - user: "I'm [Emma](first_name) [Jones](last_name)"
+      intent: introduce_self
+    - slot_was_set:
+        - first_name: "Emma"
+        - last_name: "Jones"
+    - action: action_lookup_student
+    - action: action_listen
+    - user: "Check my parking fines"
+      intent: ask_parking_arrears
+    - action: action_check_parking_arrears
+    - action: action_listen
+    - user: "I will visit the InfoDesk"
+      intent: pay_at_infodesk
+    - action: utter_visit_infodesk
+
+- story: e2e - parking arrears - asks without introducing (guard)
+  steps:
+    - action: action_listen
+    - user: "Any parking tickets?"
+      intent: ask_parking_arrears
+    - action: action_check_parking_arrears

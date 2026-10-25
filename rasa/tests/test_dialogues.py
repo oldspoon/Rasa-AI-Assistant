@@ -126,6 +126,13 @@ def test_direct_intro_no_greet() -> None:
     assert_reply(turns, 3, "E03", "Merchiston")
 
 
+def test_explain_the_bot() -> None:
+    """Story: `explain the bot`."""
+    turns = converse(["What can you do?"])
+    assert_reply(turns, 0, "Campus Attendance Assistant", "lecture or practical days",
+                 "first and last name")
+
+
 def test_full_multi_turn_conversation() -> None:
     """Story: `full multi-turn conversation` (Henry)."""
     turns = converse(
@@ -252,3 +259,64 @@ def test_student_introduces_then_asks_schedule() -> None:
     assert_reply(turns, 0, "found your record, Jack Moore")
     assert_reply(turns, 1, "Jack Moore", "Friday", "Craiglockhart", "Practical",
                  "13:00-15:00", "Fine Arts", "A27")
+
+
+# Parking arrears stories.
+
+
+def test_student_checks_parking_arrears() -> None:
+    """Story: `student checks parking arrears` (Alice)."""
+    turns = converse(["I'm Alice Johnson", "Do I have any parking arrears?"])
+    assert_reply(turns, 1, "LB21 XQT", "14 October 2026", "09:32", "£60.00",
+                 "Craiglockhart campus grounds", "14 November 2026",
+                 "charges start to accrue")
+
+
+def test_parking_arrears_reply_offers_two_buttons() -> None:
+    """The arrears reply carries a phone button and an InfoDesk button."""
+    sender = f"pytest-{uuid.uuid4().hex}"
+    _send(sender, "I'm Alice Johnson")
+    response = requests.post(
+        RASA_WEBHOOK,
+        json={"sender": sender, "message": "Do I have any parking arrears?"},
+        timeout=TIMEOUT,
+    )
+    response.raise_for_status()
+    buttons = [b for msg in response.json() for b in msg.get("buttons", [])]
+    assert [b["payload"] for b in buttons] == ["/pay_by_phone", "/pay_at_infodesk"]
+    assert [b["title"] for b in buttons] == ["Pay by phone", "Visit the InfoDesk"]
+
+
+def test_student_pays_arrears_by_phone() -> None:
+    """Story: `student pays arrears by phone` (Carol)."""
+    turns = converse(["I'm Carol Williams", "Do I have any parking arrears?",
+                      "/pay_by_phone"])
+    assert_reply(turns, 1, "SK19 DPN", "Merchiston campus grounds")
+    assert_reply(turns, 2, "020 7946 0321")
+
+
+def test_student_pays_arrears_at_infodesk() -> None:
+    """Story: `student pays arrears at infodesk` (Emma)."""
+    turns = converse(["I'm Emma Jones", "Do I have any parking arrears?",
+                      "/pay_at_infodesk"])
+    assert_reply(turns, 1, "YH70 RMV", "Sighthill campus grounds")
+    assert_reply(turns, 2, "InfoDesk")
+
+
+def test_student_without_parking_arrears() -> None:
+    """Story: `student without parking arrears` (Bob)."""
+    turns = converse(["I'm Bob Smith", "Do I have any parking arrears?"])
+    assert_reply(turns, 1, "no parking arrears")
+
+
+def test_student_asks_parking_without_intro() -> None:
+    """Story: `student asks parking without intro` (guard reaction)."""
+    turns = converse(["Do I have any parking arrears?"])
+    assert_reply(turns, 0, "introduce yourself")
+
+
+def test_typed_payment_choices_work_too() -> None:
+    """Typing the choice instead of clicking a button gives the same answers."""
+    turns = converse(["I want to pay by phone", "I will pay at the InfoDesk"])
+    assert_reply(turns, 0, "020 7946 0321")
+    assert_reply(turns, 1, "InfoDesk")
