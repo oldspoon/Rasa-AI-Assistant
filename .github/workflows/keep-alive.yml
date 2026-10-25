@@ -2,8 +2,8 @@ name: Keep the hosted bot awake
 
 on:
   schedule:
-    # Ping every 30 min: free Spaces sleep after 48h idle.
-    - cron: "*/30 * * * *"
+    # Ping daily: free Spaces sleep after 48h idle.
+    - cron: "17 6 * * *"
     # Monthly commit: GitHub stops schedules after 60 idle days.
     - cron: "0 3 1 * *"
   workflow_dispatch:
