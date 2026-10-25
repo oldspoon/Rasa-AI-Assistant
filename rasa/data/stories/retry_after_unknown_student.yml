@@ -1,0 +1,24 @@
+# Unknown student → user retries with a correct name → continues
+version: "3.1"
+
+stories:
+- story: retry after unknown student
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: introduce_self
+      entities:
+        - first_name: "John"
+        - last_name: "Doe"
+    - action: action_lookup_student
+    - intent: introduce_self
+      entities:
+        - first_name: "Mia"
+        - last_name: "Thomas"
+    - action: action_lookup_student
+    - intent: ask_lecture_days
+    - action: action_answer_lecture_days
+    - intent: ask_room
+    - action: action_answer_room
+    - intent: goodbye
+    - action: utter_goodbye

@@ -1,0 +1,8 @@
+# Out of scope
+version: "3.1"
+
+stories:
+- story: out of scope question
+  steps:
+    - intent: out_of_scope
+    - action: utter_out_of_scope

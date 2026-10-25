@@ -1,0 +1,23 @@
+# Practical student goes through every follow-up question, then goodbye
+version: "3.1"
+
+stories:
+- story: complete practical session with all details
+  steps:
+    - intent: introduce_self
+      entities:
+        - first_name: "Bob"
+        - last_name: "Smith"
+    - action: action_lookup_student
+    - intent: ask_practical_days
+    - action: action_answer_practical_days
+    - intent: ask_campus
+    - action: action_answer_campus
+    - intent: ask_time
+    - action: action_answer_time
+    - intent: ask_room
+    - action: action_answer_room
+    - intent: ask_all_details
+    - action: action_answer_all_details
+    - intent: goodbye
+    - action: utter_goodbye
