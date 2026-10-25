@@ -49,9 +49,9 @@ Training takes a while. That's normal.
 Both servers have to be running. From `rasa/`, venv on:
 
 - `python -m rasa test core --e2e --stories tests/test_stories.yml` replays
-  three full conversations end to end.
-- `python -m pytest tests/test_dialogues.py` runs 19 dialogue tests, one per
-  story, each a live round trip to the REST API.
+  nine conversations end to end.
+- `python -m pytest tests/test_dialogues.py` runs 27 dialogue tests, one per
+  story plus a few extras, each a live round trip to the REST API.
 
 ## Voice input
 
@@ -76,6 +76,10 @@ from the Hub's API. I haven't audited what's inside it. To bump it, grab a new
 hash from the [commit list](https://huggingface.co/onnx-community/whisper-base.en/commits/main)
 and change both files together, or they'll drift.
 
+## Colour modes
+
+The web chat uses the achromatopsia (greyscale) palette by default, so nothing depends on colour alone. It is named "Default" in the options menu. The menu also offers full colour and palettes for protanopia, deuteranopia and tritanopia. The choice is saved in the browser, and the palettes are in `web/src/styles/tokens.css`.
+
 ## Deployment
 
 The client is a static build on GitHub Pages. Rasa and the action server share
@@ -87,6 +91,8 @@ Everything comes from environment variables, which is why `DATABASE_URL` alone
 swaps SQLite for Postgres, and why the same image should move to AWS (ECS/EKS +
 RDS) without surgery. When the Space is asleep, the UI falls back to an
 in-browser demo engine and tells you so in a banner.
+
+To look up a conversation by its ID, see [docs/conversation-logs.md](docs/conversation-logs.md).
 
 ## Stack
 
