@@ -11,3 +11,6 @@ venv/
 .rasa/
 models/*.tar.gz
 results/
+
+# Local docs (readmes, manuals) are never committed
+*.md
