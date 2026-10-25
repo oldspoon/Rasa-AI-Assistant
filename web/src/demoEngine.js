@@ -1,16 +1,6 @@
-/* =============================================================================
-   In-browser replay of the attendance bot's dialogue.
-
-   Used as a fallback by the web chat when the hosted Rasa backend is not
-   reachable (e.g. the Hugging Face Space is parked), so the page always
-   answers: the same intents, the same response wording and the same 15
-   seeded students as the real stack.
-
-   Kept in sync with deploy/static-space/app.js, which carries the same
-   engine for the static demo Space.
-   ============================================================================= */
-
-/* --- the seeded cohort (mirrors the attendance database) ------------------- */
+/* Offline replay of the bot's dialogue, used when the hosted backend is unreachable.
+   Mirrors deploy/static-space/app.js. */
+/* Students (matches the database). */
 
 const STUDENTS = [
   { first: "Alice", middle: "Marie", last: "Johnson", campus: "Craiglockhart", type: "Lecture", day: "Monday", time: "10:00-12:00", subject: "Fine Arts", room: "F14" },
@@ -30,7 +20,7 @@ const STUDENTS = [
   { first: "Olivia", middle: "Faith", last: "White", campus: "Merchiston", type: "Lecture", day: "Friday", time: "12:00-14:00", subject: "Biology", room: "F69" },
 ];
 
-/* --- response templates (verbatim from the live bot) ----------------------- */
+/* Reply templates (same wording as the live bot). */
 
 const SAY = {
   welcome:
@@ -71,7 +61,7 @@ const SAY = {
     "I didn't quite understand that. You can ask me about your lecture or practical days, campus location, time, subject, or room number.",
 };
 
-/* --- dialogue engine ------------------------------------------------------- */
+/* Dialogue engine. */
 
 function normalize(text) {
   return text
@@ -95,7 +85,7 @@ function titleCase(word) {
 }
 
 function parseIntroducedName(text) {
-  // "my name is john doe", "i am john doe", "this is jane roe here" ...
+  // e.g. 'my name is john doe', 'this is jane roe here'.
   const m = text.match(
     /(?:my name is|my name's|name is|name's|\bi am\b|\bi'm\b|\bim\b|\bthis is\b|\bhere\b)\s+([a-z]+(?: [a-z]+){1,2})/
   );
@@ -125,21 +115,18 @@ const RE = {
   filler: /^(ok|okay|cool|nice|hmm+|hm|yeah|sure|right|oh|ah|meh|k|np|got it)\.?$/,
 };
 
-/**
- * Produce the bot's reply (or replies) for a user message.
- * Returns { texts: string[], student: object|null }.
- */
+/** Reply to a user message: { texts, student }. */
 export function reply(text, student) {
   const t = normalize(text);
   if (!t) return { texts: [SAY.fallback], student };
 
-  // 1. A known student's name anywhere in the sentence = an introduction.
+  // 1. Known student name: introduction.
   const found = findStudentIn(t);
   if (found) {
     return { texts: [SAY.found(found.first, found.last)], student: found };
   }
 
-  // 2. An introduction phrasing with an unknown name.
+  // 2. Unknown name: retry.
   const candidate = parseIntroducedName(t);
   if (candidate) {
     const [f, ...rest] = candidate.split(" ");
@@ -151,7 +138,7 @@ export function reply(text, student) {
   if (RE.thanks.test(t)) return { texts: [SAY.thanks], student };
   if (RE.greeting.test(t)) return { texts: [SAY.welcome], student };
 
-  // 4. Schedule questions (each needs a student on record first).
+  // 4. Schedule questions: need a known student.
   const scheduleQuestion =
     RE.details.test(t) ||
     RE.lecture.test(t) ||
@@ -189,17 +176,12 @@ export function reply(text, student) {
     if (RE.room.test(t)) return { texts: [SAY.room(student)], student };
   }
 
-  // 5. Neither a question nor an introduction.
+  // 5. Fallback.
   if (RE.filler.test(t)) return { texts: [SAY.fallback], student };
   return { texts: [SAY.outOfScope], student };
 }
 
-/**
- * Offline check of the login screen's credentials - the same rule the live
- * backend applies (rasa/auth_channel.py): username = first+last name,
- * password = last+first name, lowercase, whitespace ignored.
- * Returns the student object on success, otherwise null.
- */
+/** Login check, same rule as rasa/auth_channel.py. Returns the student or null. */
 export function checkCredentials(username, password) {
   const u = String(username ?? "").toLowerCase().replace(/\s+/g, "");
   const p = String(password ?? "").toLowerCase().replace(/\s+/g, "");

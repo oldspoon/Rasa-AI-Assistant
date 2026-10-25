@@ -15,8 +15,7 @@ const THEMES = [
   { id: "dark", label: "Dark", icon: "fa-moon" },
 ];
 
-// Colour-vision modes - each switches the UI to a palette tuned for that
-// condition (see the matching [data-cb="..."] blocks in index.css).
+// Colour-vision palettes (see index.css).
 const CVD_MODES = [
   { id: "off", label: "Off", hint: "default colours" },
   { id: "protanopia", label: "Protanopia", hint: "red-blind · blue palette" },
@@ -25,8 +24,7 @@ const CVD_MODES = [
   { id: "achromatopsia", label: "Achromatopsia", hint: "no colour · greyscale" },
 ];
 
-// Sidebar ("local navigation") quick questions - the docs-page way to run
-// the bot's most common asks with one click.
+// Sidebar shortcuts: common questions, one click each.
 const SIDEBAR_QUESTIONS = [
   { icon: "fa-calendar-days", label: "Lecture days", message: "What days do I have lectures?" },
   { icon: "fa-flask", label: "Practical days", message: "What days do I have practicals?" },
@@ -45,8 +43,7 @@ function newSenderId() {
     : `web-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 }
 
-// One stable conversation id per browser, kept across page reloads.
-// Rasa uses it to keep the dialogue state ("tracker").
+// Per-browser conversation id (Rasa's tracker key).
 function getSender() {
   let id = localStorage.getItem(K_SENDER);
   if (!id) {
@@ -56,8 +53,7 @@ function getSender() {
   return id;
 }
 
-// The signed-in student, kept for the tab (sessionStorage) so a reload does
-// not force a second login.
+// Signed-in student, kept for the tab so a reload skips the login.
 function readStoredUser() {
   try {
     const user = JSON.parse(sessionStorage.getItem(K_USER) ?? "null");
@@ -77,11 +73,7 @@ function signedInMessage(user) {
   };
 }
 
-// Every turn is tracked under the conversation's UUID: one console line for
-// live debugging, plus a capped transcript in localStorage
-// ("attendance-bot-log-<uuid>") so the conversation can still be inspected
-// after a reload - including when it was answered by the in-browser demo
-// engine and never reached the backend.
+// Log each turn under the conversation id (console and localStorage).
 function lastTs(key) {
   try {
     const log = JSON.parse(localStorage.getItem(key) ?? "[]");
@@ -100,55 +92,41 @@ function trackTurn(sender, from, text, extra) {
     const log = JSON.parse(localStorage.getItem(key) ?? "[]");
     log.push({ ts: Date.now(), from, text, ...extra });
     localStorage.setItem(key, JSON.stringify(log.slice(-LOG_MAX_ENTRIES)));
-    // Keep only the newest transcripts so localStorage cannot grow forever.
+    // Keep the newest transcripts only.
     Object.keys(localStorage)
       .filter((k) => k.startsWith(K_LOG_PREFIX) && k !== key)
       .sort((a, b) => lastTs(b) - lastTs(a))
       .slice(LOG_MAX_CONVERSATIONS - 1)
       .forEach((k) => localStorage.removeItem(k));
   } catch {
-    /* tracking must never break the chat (storage full / blocked) */
+    /* Tracking must never break the chat. */
   }
 }
 
-// Relative URL by default - the Vite dev server proxies /api/* to Rasa on
-// :5005. A production build (e.g. on GitHub Pages) sets VITE_RASA_URL to the
-// public Rasa endpoint instead, since the dev proxy doesn't exist there.
+// Relative /api (Vite proxy). Production sets VITE_RASA_URL.
 const WEBHOOK = import.meta.env.VITE_RASA_URL ?? "/api/webhooks/rest/webhook";
 
-// Production builds point VITE_AUTH_URL at the Neon login function
-// (neon/functions/login/) - it sits next to the database and stays reachable
-// even when the Rasa backend is asleep. Locally (and as a fallback) the
-// login endpoint is derived from the Rasa URL: a custom channel on the same
-// server (rasa/auth_channel.py), i.e. /api/auth/login through the dev proxy
-// and <rasa-url>/auth/login hosted.
+// Production: VITE_AUTH_URL (Neon login). Local: Rasa /auth/login.
 const AUTH_URL =
   import.meta.env.VITE_AUTH_URL ??
   ((import.meta.env.VITE_RASA_URL
     ? import.meta.env.VITE_RASA_URL.replace(/\/webhooks\/rest\/webhook\/?$/, "")
     : "/api") + "/auth/login");
 
-// Voice input. Preferred: the browser's built-in speech recognition (Chrome,
-// Edge, Safari) streaming live words. Where that service is missing or dead
-// (Opera GX exposes the API but never fires an event; Firefox has no API),
-// the mic captures raw audio and transcribes live, on-device, with a small
-// Whisper model (transformers.js) - no account, no server. Either way the
-// transcript streams into the message box while speaking, tapping the mic
-// again stops dictation and the text stays for review - nothing is sent
-// until Send is pressed. VITE_SPEECH_LANG tunes the built-in recognizer.
+// Voice input: browser speech, or on-device Whisper where that fails.
+// Dictation fills the box; Send is manual. VITE_SPEECH_LANG sets the language.
 const SpeechRecognitionClass =
   window.SpeechRecognition || window.webkitSpeechRecognition || null;
 const SPEECH_LANG = import.meta.env.VITE_SPEECH_LANG ?? "en-US";
 
-// Opera's Chromium builds ship no speech service, so go straight to the
-// on-device model there instead of showing a dead button.
+// Opera's Chromium has no speech service: go straight to the on-device model.
 const IS_OPERA = /OPR\//.test(navigator.userAgent);
 const CAN_WHISPER =
   !!(window.AudioContext || window.webkitAudioContext) &&
   !!navigator.mediaDevices?.getUserMedia;
 const BROWSER_SPEECH_OK = !!SpeechRecognitionClass && !IS_OPERA;
 
-// English-only, quantized (~50 MB; the browser caches it after first use).
+// English-only, quantized (~50 MB, cached after first use).
 const WHISPER_MODEL = "onnx-community/whisper-base.en";
 
 const WHISPER_RATE = 16000; // the sample rate the model wants
@@ -158,8 +136,7 @@ const LIVE_OVERLAP_S = 0.8; // re-listen to a little already-covered audio
 const MAX_RECORD_S = 60; // dictation stops by itself after this long
 const SILENT_PEAK = 0.006; // below this peak the recording counts as silence
 
-// The model is only needed for the fallback, so it is loaded on first use
-// (a separate bundle chunk, fetched lazily) and then kept in memory.
+// Loaded on first use (lazy chunk), then kept in memory.
 let whisperAsrPromise = null;
 
 function loadWhisperModel(onProgress) {
@@ -184,8 +161,7 @@ function loadWhisperModel(onProgress) {
   return whisperAsrPromise;
 }
 
-// Whisper hallucinates phrases like "[BLANK_AUDIO]" or "thank you" on silent
-// input - strip them before they ever reach the message box.
+// Drop Whisper's silence hallucinations ('[BLANK_AUDIO]', 'thank you').
 function scrubTranscript(raw) {
   return String(raw ?? "")
     .replace(/\[[^\]]{0,40}\]/g, " ")
@@ -210,8 +186,7 @@ function peakOf(samples) {
   return peak;
 }
 
-// Join a transcript onto committed text, dropping words repeated across the
-// overlap between two live passes (e.g. "...what time | time is my session").
+// Join a pass onto the committed text, skipping overlapped words.
 function mergeTranscript(committed, addition) {
   const a = committed.trim() ? committed.trim().split(/\s+/) : [];
   const b = addition.trim() ? addition.trim().split(/\s+/) : [];
@@ -229,9 +204,7 @@ function mergeTranscript(committed, addition) {
   return [...a, ...b].join(" ");
 }
 
-// --- raw PCM capture: AudioWorklet when available, ScriptProcessor where not.
-// The worklet runs on the audio thread, so capture never stalls while Whisper
-// (wasm) is busy on the main thread - no dropped words mid-dictation.
+// AudioWorklet keeps capture off the main thread. ScriptProcessor is the fallback.
 const CAPTURE_WORKLET_SOURCE = `
 class DictationCapture extends AudioWorkletProcessor {
   constructor() {
@@ -266,10 +239,9 @@ function getCaptureWorkletUrl() {
   return captureWorkletUrl;
 }
 
-// Returns a detach function that unhooks the tap again.
+// Returns a function that detaches the tap.
 async function attachPcmTap(ctx, sourceNode, onBlock) {
-  // The tap leads into a muted gain node - it exists only to pull audio
-  // through, never to be heard.
+  // Muted gain: pulls audio through, never played.
   const silent = ctx.createGain();
   silent.gain.value = 0;
   if (ctx.audioWorklet) {
@@ -315,8 +287,7 @@ async function attachPcmTap(ctx, sourceNode, onBlock) {
   };
 }
 
-// Box-average decimation - a cheap anti-alias filter. Only needed when the
-// AudioContext refuses the 16 kHz it is created with.
+// Box-average downsampling, only when the context refuses 16 kHz.
 function downsample16k(raw, ratio) {
   const outLen = Math.max(1, Math.floor(raw.length / ratio));
   const out = new Float32Array(outLen);
@@ -350,7 +321,7 @@ function fmtTime(ts) {
 }
 
 export default function App() {
-  // --- appearance / accessibility preferences (persisted in localStorage) ---
+  // Appearance and accessibility (saved).
   const [themePref, setThemePref] = useState(
     () => localStorage.getItem(K_THEME) ?? "system"
   );
@@ -378,14 +349,14 @@ export default function App() {
     localStorage.setItem(K_CVD, cvd);
   }, [cvd]);
 
-  // --- login state ---
+  // Login.
   const [user, setUser] = useState(readStoredUser);
   const [loginName, setLoginName] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
 
-  // --- chat state ---
+  // Chat.
   const [sender, setSender] = useState(() => getSender());
   const [messages, setMessages] = useState(() => {
     const saved = readStoredUser();
@@ -399,13 +370,10 @@ export default function App() {
   const bottomRef = useRef(null);
   const menuRef = useRef(null);
   const demoStateRef = useRef({ student: null });
-  // The sign-in introduction ("My name is ...") is sent silently; if the
-  // backend was unreachable when it went out, it is delivered again before
-  // the next message reaches the live backend, so the dialogue still has the
-  // student on record. `null` means nothing is pending.
+  // Sign-in introduction, resent first if the backend missed it.
   const pendingIntroRef = useRef(null);
 
-  // --- voice input state ---
+  // Voice input state.
   const [listening, setListening] = useState(false);
   const [speechHint, setSpeechHint] = useState("");
   const recognitionRef = useRef(null);
@@ -413,8 +381,7 @@ export default function App() {
   const wantListenRef = useRef(false); // the user wants dictation to continue
   const speechBaseRef = useRef(""); // text already typed when the mic starts
   const speechHintTimerRef = useRef(null);
-  // "browser" = built-in speech service, "whisper" = on-device model,
-  // "none" = this browser has no usable voice input at all.
+  // "browser" = built-in speech, "whisper" = on-device, "none" = unsupported.
   const [voiceMode, setVoiceMode] = useState(
     BROWSER_SPEECH_OK ? "browser" : CAN_WHISPER ? "whisper" : "none"
   );
@@ -471,7 +438,7 @@ export default function App() {
     };
   }, [menuOpen]);
 
-  // --- voice input (built-in speech, with an on-device model fallback) ---
+  // Voice input.
   function showSpeechHint(message) {
     setSpeechHint(message);
     clearTimeout(speechHintTimerRef.current);
@@ -483,8 +450,7 @@ export default function App() {
     return base ? `${base} ${text}` : text;
   }
 
-  // Everything dictated so far: what was already typed + finals from ended
-  // sessions + the running session's final and interim words.
+  // All dictated text so far.
   function composeSpeechText() {
     return [
       speechBaseRef.current,
@@ -497,8 +463,7 @@ export default function App() {
       .join(" ");
   }
 
-  // Ends any running dictation: the built-in recognizer and the on-device
-  // capture. stop() throws when the recognizer is not running - a no-op.
+  // Stop dictation: the built-in recognizer and the on-device capture.
   function stopListening() {
     speechActiveRef.current = false; // late results must not rewrite the box
     wantListenRef.current = false;
@@ -512,8 +477,7 @@ export default function App() {
     if (recordingRef.current) stopWhisperRecording();
   }
 
-  // Switch to the on-device model (Opera GX ships a speech API that never
-  // fires an event; some networks cannot reach the service either).
+  // Switch to the on-device model when built-in voice is unusable.
   function useWhisper(message) {
     if (!CAN_WHISPER) {
       showSpeechHint(
@@ -525,10 +489,7 @@ export default function App() {
     if (message) showSpeechHint(message);
   }
 
-  // Some Chromium builds expose the speech API but start() never produces a
-  // single event. Once the microphone is allowed (a permission prompt is its
-  // own UI and takes its time), give the service a moment and switch to the
-  // on-device model if nothing at all happens.
+  // Fall back to the on-device model if the speech service never fires an event.
   function pollForDeadSpeechService() {
     clearInterval(permPollRef.current);
     const startedAt = Date.now();
@@ -571,7 +532,7 @@ export default function App() {
     }, 800);
   }
 
-  // --- on-device capture: raw PCM in, live transcript out ------------------
+  // On-device capture and live transcript.
 
   function rawLength() {
     let n = 0;
@@ -602,7 +563,7 @@ export default function App() {
     return out.subarray(0, offset);
   }
 
-  // A slice of the recording at the 16 kHz the model works in.
+  // Slice of the recording at 16 kHz.
   function slice16k(start16, end16) {
     const rate = capRateRef.current;
     if (rate === WHISPER_RATE) return gatherRaw(start16, end16);
@@ -631,10 +592,7 @@ export default function App() {
     closeLevelCtx(); // closes the shared microphone AudioContext
   }
 
-  // Transcribe ~3 s slices while the user is still speaking, so words stream
-  // into the box (ChatGPT-style dictation). Passes run one at a time; when
-  // the model is slower than real time the slices simply get bigger, and the
-  // final pass at stop replaces the live text with one clean transcript.
+  // Transcribe ~3 s slices while speaking, one pass at a time.
   async function pumpLiveTranscription() {
     if (liveBusyRef.current) return;
     liveBusyRef.current = true;
@@ -659,8 +617,7 @@ export default function App() {
         const from = Math.max(0, covered - LIVE_OVERLAP_S * WHISPER_RATE);
         const samples = slice16k(from, end);
         liveCoveredRef.current = end;
-        // Nothing audible in this slice: skip it - Whisper only hallucinates
-        // on silence, and the pass costs real compute.
+        // Silent slice: skip it, since Whisper hallucinates on silence.
         if (peakOf(samples) < SILENT_PEAK) continue;
         let text = "";
         try {
@@ -685,8 +642,7 @@ export default function App() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      // Ask for 16 kHz up front - the context resamples the microphone
-      // stream for us, exactly the rate the model wants.
+      // Ask for 16 kHz; the context resamples the mic for us.
       const ctx = new AudioCtx({ sampleRate: WHISPER_RATE });
       if (ctx.state === "suspended" && ctx.resume) ctx.resume();
       const source = ctx.createMediaStreamSource(stream);
@@ -700,14 +656,12 @@ export default function App() {
       recordingRef.current = true;
       speechBaseRef.current = input.trim();
 
-      // Capture off the audio thread so Whisper's work on the main thread
-      // never drops words.
+      // Capture off the audio thread, so Whisper cannot drop words.
       capDetachRef.current = await attachPcmTap(ctx, source, (block) => {
         if (recordingRef.current) capBlocksRef.current.push(block);
       });
 
-      // Watch the input level: tell the user while recording when the
-      // microphone delivers nothing (muted, off or the wrong device).
+      // Warn while recording if the mic delivers no sound.
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 2048;
       source.connect(analyser);
@@ -724,7 +678,7 @@ export default function App() {
         }
         if (peak > 0.01) {
           if (micWarnedRef.current) {
-            // Sound arrived after all - take the warning back down.
+            // Sound arrived: clear the warning.
             micWarnedRef.current = false;
             clearTimeout(speechHintTimerRef.current);
             setSpeechHint("");
@@ -742,7 +696,7 @@ export default function App() {
         }
       }, 300);
 
-      // Fetch and warm up the small speech model while the user speaks.
+      // Warm up the speech model while the user speaks.
       loadWhisperModel((pct) =>
         showSpeechHint(
           pct >= 100
@@ -774,8 +728,7 @@ export default function App() {
     finalizeRecording();
   }
 
-  // The final pass over the whole recording: replaces whatever the live
-  // passes produced with one clean transcript of the full audio.
+  // Final pass: one clean transcript replaces the live text.
   async function finalizeRecording() {
     const samples = slice16k(0, total16k());
     if (!samples.length) {
@@ -793,7 +746,7 @@ export default function App() {
     setTranscribing(true);
     showSpeechHint("Transcribing…");
     try {
-      // Lift quiet recordings (low-gain microphones) before transcription.
+      // Lift quiet recordings (low-gain mics) before transcription.
       if (peak < 0.5) {
         const gain = Math.min(0.9 / peak, 20);
         for (let i = 0; i < samples.length; i += 1) samples[i] *= gain;
@@ -903,7 +856,7 @@ export default function App() {
       clearTimeout(watchdogRef.current);
       if (event.error === "network" || event.error === "service-not-allowed") {
         wantListenRef.current = false;
-        // The built-in service is unreachable here - use the on-device model.
+        // Service unreachable: use the on-device model.
         useWhisper(
           "This browser's speech service isn't available - switched to on-device voice. Tap the mic and speak."
         );
@@ -923,8 +876,7 @@ export default function App() {
     rec.onend = () => {
       clearTimeout(watchdogRef.current);
       if (wantListenRef.current && speechActiveRef.current) {
-        // The service ends a session on its own after a pause - keep the
-        // text so far and start a fresh session so dictation continues.
+        // Session ended on its own: keep the text, start a new one.
         noSignalRestartsRef.current += 1;
         if (noSignalRestartsRef.current > 20) {
           speechActiveRef.current = false;
@@ -983,9 +935,7 @@ export default function App() {
     };
   }, []);
 
-  // One chat turn. `hidden` skips the user bubble (the login screen sends
-  // the introduction silently); `sender` overrides the conversation id (a
-  // brand-new conversation still belongs to the signed-in student).
+  // One chat turn. hidden: no bubble. sender: overrides the conversation id.
   async function sendMessage(
     raw,
     { hidden = false, sender: senderOverride, intro = false } = {}
@@ -1002,8 +952,7 @@ export default function App() {
     setBusy(true);
     trackTurn(activeSender, "user", message, hidden ? { hidden: true } : undefined);
     try {
-      // An introduction that never reached the backend (it was asleep at
-      // sign-in): deliver it now, before this message is interpreted.
+      // Deliver a sign-in introduction that never reached the backend.
       const pending = pendingIntroRef.current;
       if (!intro && pending && pending.sender === activeSender) {
         const catchUp = await fetch(WEBHOOK, {
@@ -1035,9 +984,7 @@ export default function App() {
       setDemoMode(false);
       if (intro) pendingIntroRef.current = null;
     } catch (err) {
-      // Backend unreachable (e.g. the hosted Space is parked). Answer from
-      // the in-browser demo engine so the page always works: same intents,
-      // same response wording, same seeded students.
+      // Backend unreachable: answer from the in-browser demo engine.
       trackTurn(
         activeSender,
         "notice",
@@ -1056,7 +1003,7 @@ export default function App() {
         trackTurn(activeSender, "bot", text, { engine: "demo" })
       );
       setDemoMode(true);
-      // Remember the introduction so the next live send delivers it first.
+      // Queue the introduction for the next live send.
       if (intro) pendingIntroRef.current = { sender: activeSender, text: message };
     } finally {
       setBusy(false);
@@ -1090,9 +1037,7 @@ export default function App() {
       }
       account = { first: data.first_name, last: data.last_name, via: "server" };
     } catch (err) {
-      // Loyal to the chat's fallback: when the backend cannot be reached the
-      // same credential rule is checked in the browser (15 demo accounts),
-      // so the page still works while the Space is parked.
+      // Backend unreachable: check the credentials in the browser.
       const offline = checkCredentials(username, password);
       if (!offline) {
         setLoginError(
@@ -1109,9 +1054,7 @@ export default function App() {
       setLoginBusy(false);
     }
 
-    // Signed in: greet with a system line and introduce the student to the
-    // bot silently - from here on the dialogue is exactly the old flow, so
-    // the bot already knows who is asking.
+    // Signed in: greet, then introduce the student to the bot silently.
     sessionStorage.setItem(K_USER, JSON.stringify(account));
     setUser(account);
     setLoginName("");
@@ -1136,8 +1079,7 @@ export default function App() {
     setDemoMode(false);
     demoStateRef.current.student = null;
     pendingIntroRef.current = null;
-    // A fresh conversation: the next student must not inherit this one's
-    // dialogue state (Rasa keeps the student in the tracker's slots).
+    // New conversation: drop the previous dialogue state.
     const id = newSenderId();
     localStorage.setItem(K_SENDER, id);
     setSender(id);
@@ -1180,7 +1122,7 @@ export default function App() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1400);
     } catch {
-      /* clipboard unavailable (non-secure context) - the id stays visible */
+      /* No clipboard here (non-secure context). */
     }
   }
 
