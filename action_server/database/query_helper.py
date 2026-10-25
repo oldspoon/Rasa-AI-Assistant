@@ -1,22 +1,16 @@
-"""
-database/query_helper.py
-Utility script for manually inspecting the attendance database.
-Uses the same auto-selected backend as the action server: the SQLite file by
-default, or the Postgres database when DATABASE_URL is set.
-Run:  python database/query_helper.py
-"""
+"""Inspect the attendance database. Run: python database/query_helper.py"""
 
 import sys
 
-# Keep the emoji/table output working on legacy Windows code pages.
+# Windows console encoding fix.
 try:
     sys.stdout.reconfigure(encoding="utf-8")
 except Exception:
     pass
 
 try:
-    from database import db          # imported as part of the package
-except ImportError:                  # run directly: python database/query_helper.py
+    from database import db  # package import
+except ImportError:  # direct run
     import db
 
 
@@ -69,7 +63,7 @@ def summary_by_session_type():
 
 
 def print_login_accounts():
-    """The `users` table: username = first+last, password = last+first."""
+    """Print the login accounts."""
     try:
         rows = db.fetch_all(
             "SELECT username, password, first_name, last_name FROM users ORDER BY id"

@@ -1,16 +1,6 @@
 """
-actions/actions.py
-Custom Rasa actions that read student schedules from the attendance database
-(SQLite locally; Postgres when DATABASE_URL is set).
-
-Design note
------------
-The answer actions are stateless: they read the student's first/last name
-from slots (set from entities, which Rasa also tracks in stories) and query
-the attendance database on demand. No custom "student_*" slots are set at
-runtime, because slots that appear only at runtime (never in the training
-stories) make the ML policies under-confident and can trigger the default
-fallback message.
+Rasa custom actions that read student schedules from the attendance database.
+Stateless: every turn re-queries the database, so no runtime-only slots.
 """
 
 import logging
@@ -26,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def _fetch_student(first_name: str, last_name: str) -> dict | None:
-    """Query the attendance database for a student by first and last name."""
+    """Look up a student by first and last name."""
     sql = """
         SELECT *
         FROM   attendance
@@ -42,10 +32,7 @@ def _fetch_student(first_name: str, last_name: str) -> dict | None:
 
 
 def _get_full_name(tracker: Tracker) -> tuple[str, str]:
-    """
-    Return (first_name, last_name) from slots, falling back to the entities
-    of the latest user message when a slot has not been filled yet.
-    """
+    """Name from slots, else from the latest message entities."""
     first = tracker.get_slot("first_name") or ""
     last  = tracker.get_slot("last_name")  or ""
 
@@ -62,10 +49,7 @@ def _get_full_name(tracker: Tracker) -> tuple[str, str]:
 def _student_or_error(
     dispatcher: CollectingDispatcher, tracker: Tracker
 ) -> dict | None:
-    """
-    Return the student row for the current conversation, or None after
-    dispatching a helpful message (ask for name / name not found).
-    """
+    """Return the student row, or None after telling the user why."""
     first, last = _get_full_name(tracker)
 
     if not first or not last:
@@ -85,21 +69,7 @@ def _student_or_error(
 
 
 def _log_turn(tracker: Tracker, action_name: str) -> None:
-    """
-    Log one line per action call, keyed by the conversation UUID (the sender
-    id the chat front end generates per conversation). Grep the action
-    server output for `conversation=<uuid>` to follow a chat; the full
-    conversation - including the bot's replies - is kept by the tracker
-    store (see rasa/tracker_store.py). Replay it with:
-
-        python show_conversation.py <uuid>
-
-    Log line shape:
-
-        conversation=9f2c... action=action_answer_campus intent=ask_campus
-        confidence=0.98 user='where is my class'
-        slots={'first_name': 'Alice', 'last_name': 'Johnson'}
-    """
+    """Log one line per action, keyed by conversation UUID. Replay chats with rasa/show_conversation.py."""
     latest = tracker.latest_message or {}
     intent = latest.get("intent") or {}
     confidence = intent.get("confidence")
@@ -120,10 +90,7 @@ def _log_turn(tracker: Tracker, action_name: str) -> None:
 
 
 class ActionLookupStudent(Action):
-    """
-    Triggered when the user introduces themselves.
-    Queries the attendance DB for first_name + last_name and confirms.
-    """
+    """Confirm a student who introduced themselves by name."""
 
     def name(self) -> Text:
         return "action_lookup_student"
@@ -160,8 +127,7 @@ class ActionLookupStudent(Action):
             last_name=row["last_name"],
         )
 
-        # Re-set the slots with the canonical spelling from the database.
-        # This keeps the tracker consistent with the training stories.
+        # Use the database spelling, so slots match the stories.
         return [
             SlotSet("first_name", row["first_name"]),
             SlotSet("last_name", row["last_name"]),

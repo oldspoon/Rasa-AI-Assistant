@@ -1,37 +1,23 @@
 """
-populate_db.py
-Populates the attendance database with 15 students,
-their campus assignments, sessions, rooms, and activities - plus one login
-account per student (the `users` table).
+Seed the attendance database: 15 students, sessions, rooms and login accounts.
+SQLite by default; Postgres when DATABASE_URL is set.
 
-Two modes, chosen automatically:
-  * local (default)  -> (re)creates the SQLite file `attendance.db` here
-  * DATABASE_URL set -> (re)creates and seeds that Postgres database instead
-                        (e.g. the hosted Neon database)
-
-Run:  python database/populate_db.py
-      python database/populate_db.py --users-only   (login accounts only -
-      does not touch the attendance table; handy for an existing database)
-
-Login accounts follow one rule:
-    username = first name + last name, run together, lowercase
-    password = last name + first name, run together, lowercase
-e.g. Alice Johnson -> alicejohnson / johnsonalice. Matching is
-case-insensitive (and ignores spaces), so "Alice Johnson" works too.
+Run: python database/populate_db.py [--users-only]
+Logins: username = first+last, password = last+first (lowercase).
 """
 
 import random
 import sys
 
-# Keep the emoji/table output working on legacy Windows code pages.
+# Windows console encoding fix.
 try:
     sys.stdout.reconfigure(encoding="utf-8")
 except Exception:
     pass
 
 try:
-    from database import db          # imported as part of the package
-except ImportError:                  # run directly: python database/populate_db.py
+    from database import db  # package import
+except ImportError:  # direct run
     import db
 
 SQLITE_DDL = """
@@ -84,7 +70,7 @@ USERS_POSTGRES_DDL = """
     )
 """
 
-# 15 students with first, middle, last names
+# (first, middle, last)
 STUDENTS = [
     ("Alice",   "Marie",    "Johnson"),
     ("Bob",     "James",    "Smith"),
@@ -105,14 +91,14 @@ STUDENTS = [
 
 
 def derive_credentials(first_name: str, last_name: str) -> tuple:
-    """(username, password) for one student: first+last / last+first, lowercase."""
+    """Login (username, password) for one student."""
     username = f"{first_name}{last_name}".lower()
     password = f"{last_name}{first_name}".lower()
     return username, password
 
 
 def user_rows() -> list:
-    """The `users` rows for the seeded cohort: (username, password, first, last)."""
+    """Login rows for every student."""
     rows = []
     for first, _middle, last in STUDENTS:
         username, password = derive_credentials(first, last)
@@ -121,7 +107,7 @@ def user_rows() -> list:
 
 
 def _seed_users(cursor) -> None:
-    """(Re)create the `users` table and insert one login per student."""
+    """Recreate the users table with one login per student."""
     cursor.execute("DROP TABLE IF EXISTS users")
     cursor.execute(USERS_POSTGRES_DDL if db.is_postgres() else USERS_SQLITE_DDL)
 
@@ -146,7 +132,7 @@ def _print_users() -> None:
 
 
 def create_users_only():
-    """(Re)create just the `users` table - leaves `attendance` untouched."""
+    """Recreate only the users table."""
     conn = db.connect()
     try:
         cursor = conn.cursor()
@@ -173,7 +159,7 @@ def create_database():
         days          = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         activities    = ["Fine Arts", "Computing", "Biology"]
 
-        # Valid 2-hour time slots within 10:00–17:00
+        # 2-hour slots, 10:00–17:00
         time_slots = [
             "10:00-12:00",
             "11:00-13:00",
@@ -212,7 +198,7 @@ def create_database():
             rows,
         )
 
-        # One login account per student (same first/last names).
+        # One login per student.
         _seed_users(cursor)
 
         conn.commit()

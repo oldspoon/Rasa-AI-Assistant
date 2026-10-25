@@ -1,21 +1,6 @@
 """
-database/db.py
-Dual-mode attendance database access.
-
-Default (local development): the SQLite file `attendance.db` in this folder.
-Hosted mode: set the DATABASE_URL environment variable - for example a Neon
-Postgres connection string - and the same queries run against Postgres.
-
-Everything else in the project talks to the database through this module:
-
-    db.is_postgres()          -> True when DATABASE_URL is set
-    db.describe_backend()     -> where queries currently go (for log output)
-    db.connect()              -> a raw connection (row factory applied)
-    db.fetch_one(sql, params) -> dict | None
-    db.fetch_all(sql, params) -> list[dict]
-
-Write queries with `?` placeholders; in Postgres mode they are translated to
-psycopg2-style `%s` placeholders automatically.
+Attendance database access: SQLite locally, Postgres when DATABASE_URL is set.
+Queries use ? placeholders; they are translated to %s for Postgres.
 """
 
 import os
