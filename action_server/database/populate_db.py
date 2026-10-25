@@ -1,5 +1,6 @@
 """
-Seed the attendance database: 15 students, sessions, rooms and login accounts.
+Seed the attendance database: 15 students, each with a weekly Lecture and Practical,
+plus rooms, parking charges and login accounts.
 SQLite by default; Postgres when DATABASE_URL is set.
 
 Run: python database/populate_db.py [--users-only | --parking-only]
@@ -235,6 +236,51 @@ def create_users_only():
     _print_users()
 
 
+SESSION_TYPES = ["Lecture", "Practical"]
+DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+ACTIVITIES = ["Fine Arts", "Computing", "Biology"]
+
+# 2-hour slots, 10:00-17:00
+TIME_SLOTS = [
+    "10:00-12:00",
+    "11:00-13:00",
+    "12:00-14:00",
+    "13:00-15:00",
+    "14:00-16:00",
+    "15:00-17:00",
+]
+
+
+def session_rows() -> list:
+    """Two rows per student, Lecture then Practical, on different days.
+
+    Each student's first session keeps the schedule they had before the second was added.
+    """
+    rng = random.Random(42)
+
+    def random_room():
+        return f"{rng.choice('ABCDEF')}{rng.randint(0, 99):02d}"
+
+    first_sessions = []
+    for i, (first, middle, last) in enumerate(STUDENTS):
+        first_sessions.append(
+            (first, middle, last, campus_for(i), SESSION_TYPES[i % 2],
+             DAYS[i % len(DAYS)], TIME_SLOTS[i % len(TIME_SLOTS)],
+             ACTIVITIES[i % len(ACTIVITIES)], random_room())
+        )
+
+    rows = []
+    for i, first_session in enumerate(first_sessions):
+        first, middle, last, campus, _kind, _day, _time, activity, _room = first_session
+        other = (
+            first, middle, last, campus, SESSION_TYPES[(i + 1) % 2],
+            DAYS[(i + 2) % len(DAYS)], TIME_SLOTS[(i + 3) % len(TIME_SLOTS)],
+            activity, random_room(),
+        )
+        rows.extend(sorted([first_session, other], key=lambda r: SESSION_TYPES.index(r[4])))
+    return rows
+
+
 def create_database():
     conn = db.connect()
     try:
@@ -243,36 +289,7 @@ def create_database():
         cursor.execute("DROP TABLE IF EXISTS attendance")
         cursor.execute(POSTGRES_DDL if db.is_postgres() else SQLITE_DDL)
 
-        session_types = ["Lecture", "Practical"]
-        days          = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-        activities    = ["Fine Arts", "Computing", "Biology"]
-
-        # 2-hour slots, 10:00–17:00
-        time_slots = [
-            "10:00-12:00",
-            "11:00-13:00",
-            "12:00-14:00",
-            "13:00-15:00",
-            "14:00-16:00",
-            "15:00-17:00",
-        ]
-
-        def random_room():
-            letter = random.choice("ABCDEF")
-            number = random.randint(0, 99)
-            return f"{letter}{number:02d}"
-
-        random.seed(42)
-
-        rows = []
-        for i, (first, middle, last) in enumerate(STUDENTS):
-            campus       = campus_for(i)
-            session_type = session_types[i % len(session_types)]
-            day          = days[i % len(days)]
-            time_range   = time_slots[i % len(time_slots)]
-            activity     = activities[i % len(activities)]
-            room         = random_room()
-            rows.append((first, middle, last, campus, session_type, day, time_range, activity, room))
+        rows = session_rows()
 
         placeholder = "%s" if db.is_postgres() else "?"
         values = ", ".join([placeholder] * 9)
@@ -298,7 +315,7 @@ def create_database():
         conn.close()
 
     print(f"Database created at: {db.describe_backend()}")
-    print(f"{len(records)} student records inserted.")
+    print(f"{len(records)} sessions inserted for {len(STUDENTS)} students.")
     print(f"{len(STUDENTS)} login accounts inserted.")
     print(f"{len(PARKING_ARREARS)} parking charges inserted.\n")
     print(f"{'ID':<4} {'First':<10} {'Middle':<10} {'Last':<12} {'Campus':<16} "
