@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AUTH_URL, LOGOUT_URL } from "../endpoints.js";
-import { HttpError, isBackendDown } from "../chat/backend.js";
+import { HttpError, accountFromLogin, isBackendDown } from "../chat/backend.js";
 import { checkCredentials } from "../demo/demoEngine.js";
 import { clearStoredUser, readStoredUser, storeUser } from "../storage/session.js";
 import { clearTranscripts } from "../storage/transcriptLog.js";
@@ -21,16 +21,7 @@ export function useAuth({ setUser, setInput, chat, voice, closeMenu }) {
     });
     if (res.status === 400 || res.status === 401) return "rejected";
     if (!res.ok) throw new HttpError(res.status);
-    const data = await res.json();
-    if (!data?.ok || !data.first_name || !data.last_name) {
-      throw new Error("unexpected login response");
-    }
-    return {
-      first: data.first_name,
-      last: data.last_name,
-      token: data.token,
-      via: "server",
-    };
+    return accountFromLogin(await res.json());
   }
 
   async function onLogin(e) {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HttpError, SessionExpired, isBackendDown, postChat } from "./backend.js";
+import { HttpError, SessionExpired, accountFromLogin, isBackendDown, postChat } from "./backend.js";
 
 describe("isBackendDown", () => {
   it("is true when fetch cannot reach the server", () => {
@@ -50,5 +50,20 @@ describe("postChat", () => {
     const err = await postChat("abc", "hi", "tok").catch((e) => e);
     expect(err.status).toBe(500);
     expect(isBackendDown(err)).toBe(false);
+  });
+});
+
+describe("accountFromLogin", () => {
+  it("reads the student and the chat token", () => {
+    const data = { ok: true, first_name: "Alice", last_name: "Johnson", token: "tok" };
+    expect(accountFromLogin(data)).toEqual({ first: "Alice", last: "Johnson", token: "tok", via: "server" });
+  });
+
+  it("refuses a login without a chat token (the Neon login issues none)", () => {
+    expect(() => accountFromLogin({ ok: true, first_name: "Alice", last_name: "Johnson" })).toThrow(/no chat token/);
+  });
+
+  it("refuses a malformed response", () => {
+    expect(() => accountFromLogin({ ok: true })).toThrow(/unexpected login response/);
   });
 });

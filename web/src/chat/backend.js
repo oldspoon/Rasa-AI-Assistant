@@ -35,3 +35,15 @@ export async function postChat(sender, message, token) {
   if (!res.ok) throw new HttpError(res.status);
   return res;
 }
+
+// The signed-in account from a successful /auth/login response. The chat webhook only
+// accepts a login token, so a response without one comes from the wrong login service.
+export function accountFromLogin(data) {
+  if (!data?.ok || !data.first_name || !data.last_name) {
+    throw new Error("unexpected login response");
+  }
+  if (!data.token) {
+    throw new Error("the login service sent no chat token (AUTH_URL must be Rasa's /auth/login)");
+  }
+  return { first: data.first_name, last: data.last_name, token: data.token, via: "server" };
+}

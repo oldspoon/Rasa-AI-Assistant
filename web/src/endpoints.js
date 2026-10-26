@@ -1,7 +1,8 @@
 // Relative /api (Vite proxy). Production sets VITE_RASA_URL.
 export const WEBHOOK = import.meta.env.VITE_RASA_URL ?? "/api/webhooks/rest/webhook";
 
-// Production: VITE_AUTH_URL (Neon login). Local: Rasa /auth/login.
+// VITE_AUTH_URL, else Rasa's /auth/login next to the webhook. It must be a Rasa /auth/login:
+// the webhook only accepts the token it issues (the Neon login, for the static demo, issues none).
 export const AUTH_URL =
   import.meta.env.VITE_AUTH_URL ??
   ((import.meta.env.VITE_RASA_URL
