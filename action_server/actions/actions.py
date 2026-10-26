@@ -152,9 +152,8 @@ def _sessions_or_error(
     if {s["session_type"] for s in sessions} != set(schedule.KINDS):
         logger.error("Incomplete weekly schedule for %s", student["first_name"])
         dispatcher.utter_message(
-            response="utter_student_not_found",
+            response="utter_schedule_incomplete",
             first_name=student["first_name"],
-            last_name=student["last_name"],
         )
         return None
 

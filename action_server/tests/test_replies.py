@@ -56,6 +56,11 @@ class TestScheduleAnswers:
         sent, _ = run(actions.ActionAnswerLectureDays())
         assert sent == [{"response": "utter_student_not_found", "first_name": "Alice", "last_name": "Johnson"}]
 
+    def test_an_incomplete_schedule_says_so(self, database):
+        database.sessions = [LECTURE]
+        sent, _ = run(actions.ActionAnswerPracticalDays())
+        assert sent == [{"response": "utter_schedule_incomplete", "first_name": "Alice"}]
+
     def test_a_failing_student_lookup_says_the_records_are_unavailable(self, database):
         database.student = broken
         sent, _ = run(actions.ActionAnswerCampus())
@@ -84,5 +89,5 @@ class TestLookupStudent:
 def test_every_reply_the_actions_use_is_in_the_domain():
     """The new replies only reach the user if domain.yml defines them."""
     domain = yaml.safe_load((Path(__file__).resolve().parents[2] / "rasa" / "domain.yml").read_text(encoding="utf-8"))
-    for response in ("utter_records_unavailable", "utter_student_not_found"):
+    for response in ("utter_schedule_incomplete", "utter_records_unavailable", "utter_student_not_found"):
         assert response in domain["responses"], response
