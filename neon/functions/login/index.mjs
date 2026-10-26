@@ -1,5 +1,7 @@
-/* login: student sign-in endpoint for Octopi, deployed as a Neon Function.
-   Same request/response contract as rasa/auth_channel.py.
+/* login: student sign-in for the static demo Space (deploy/static-space), deployed as a
+   Neon Function. Same request, credential rule and status codes as rasa/auth_channel.py,
+   but it issues no chat token and has no /logout. The live web chat must sign in through
+   Rasa's /auth/login instead, because its webhook only accepts that token.
 
    POST {"username": "alicejohnson", "password": "johnsonalice"}
    200 ok | 400 missing fields | 401 bad credentials | 503 database down

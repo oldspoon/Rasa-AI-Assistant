@@ -7,7 +7,8 @@ import { isNoiseTranscript, mergeTranscript, scrubTranscript } from "./shared/tr
 import { peakOf, slice16k as sliceCapture, total16k as totalCapture } from "./shared/pcm.js";
 import { attachPcmTap } from "./shared/capture.js";
 
-/* Live login: Neon Function, same contract as rasa/auth_channel.py. */
+/* Live login: Neon Function. Checks the same users table as rasa/auth_channel.py but
+   issues no chat token, which is fine here: this page never calls the chat webhook. */
 
 const AUTH_URL =
   "https://br-empty-violet-b70xbc42-login.compute.c-13.us-east-1.aws.neon.tech/";
