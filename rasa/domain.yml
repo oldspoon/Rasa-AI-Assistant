@@ -72,6 +72,9 @@ responses:
   utter_visit_infodesk:
     - text: "To pay in person, visit the **InfoDesk** on your campus. Bring your vehicle's licence plate and the date of the charge."
 
+  utter_records_unavailable:
+    - text: "I couldn't reach the attendance records just now. Please try again in a moment."
+
   utter_parking_unavailable:
     - text: "I couldn't check your parking arrears just now. Please try again in a moment."
 

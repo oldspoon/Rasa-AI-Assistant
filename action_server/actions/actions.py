@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 def _fetch_student(first_name: str, last_name: str) -> dict | None:
-    """Look up a student by first and last name."""
+    """Look up a student by first and last name. None if there is no such student.
+
+    Database errors propagate, so callers can tell "not found" from "unavailable".
+    """
     sql = """
         SELECT *
         FROM   attendance
@@ -26,15 +29,11 @@ def _fetch_student(first_name: str, last_name: str) -> dict | None:
           AND  LOWER(last_name)  = LOWER(?)
         LIMIT  1
     """
-    try:
-        return db.fetch_one(sql, (first_name.strip(), last_name.strip()))
-    except Exception as exc:
-        logger.error("Database error in _fetch_student: %s", exc)
-        return None
+    return db.fetch_one(sql, (first_name.strip(), last_name.strip()))
 
 
 def _fetch_sessions(first_name: str, last_name: str) -> list:
-    """The student's weekly sessions, Lecture first. Empty if the database fails."""
+    """The student's weekly sessions, Lecture first. Database errors propagate."""
     sql = """
         SELECT *
         FROM   attendance
@@ -42,11 +41,7 @@ def _fetch_sessions(first_name: str, last_name: str) -> list:
           AND  LOWER(last_name)  = LOWER(?)
         ORDER  BY session_type
     """
-    try:
-        return db.fetch_all(sql, (first_name.strip(), last_name.strip()))
-    except Exception as exc:
-        logger.error("Database error in _fetch_sessions: %s", exc)
-        return []
+    return db.fetch_all(sql, (first_name.strip(), last_name.strip()))
 
 
 def _fetch_parking_arrears(first_name: str, last_name: str) -> list | None:
@@ -106,6 +101,26 @@ def _get_full_name(tracker: Tracker) -> tuple[str, str]:
     return first, last
 
 
+def _find_student(
+    dispatcher: CollectingDispatcher, first: str, last: str
+) -> dict | None:
+    """The student row, or None after saying they are unknown or the records are down."""
+    try:
+        row = _fetch_student(first, last)
+    except Exception:
+        logger.exception("Database error while looking up a student")
+        dispatcher.utter_message(response="utter_records_unavailable")
+        return None
+
+    if row is None:
+        dispatcher.utter_message(
+            response="utter_student_not_found",
+            first_name=first,
+            last_name=last,
+        )
+    return row
+
+
 def _student_or_error(
     dispatcher: CollectingDispatcher, tracker: Tracker
 ) -> dict | None:
@@ -116,16 +131,7 @@ def _student_or_error(
         dispatcher.utter_message(response="utter_no_student_loaded")
         return None
 
-    row = _fetch_student(first, last)
-    if row is None:
-        dispatcher.utter_message(
-            response="utter_student_not_found",
-            first_name=first,
-            last_name=last,
-        )
-        return None
-
-    return row
+    return _find_student(dispatcher, first, last)
 
 
 def _sessions_or_error(
@@ -136,7 +142,13 @@ def _sessions_or_error(
     if student is None:
         return None
 
-    sessions = _fetch_sessions(student["first_name"], student["last_name"])
+    try:
+        sessions = _fetch_sessions(student["first_name"], student["last_name"])
+    except Exception:
+        logger.exception("Database error while reading a weekly schedule")
+        dispatcher.utter_message(response="utter_records_unavailable")
+        return None
+
     if {s["session_type"] for s in sessions} != set(schedule.KINDS):
         logger.error("Incomplete weekly schedule for %s", student["first_name"])
         dispatcher.utter_message(
@@ -205,14 +217,8 @@ class ActionLookupStudent(Action):
                 return [SlotSet("first_name", first_name), SlotSet("last_name", last_name)]
 
         logger.info("Looking up student: %s %s", first_name, last_name)
-        row = _fetch_student(first_name, last_name)
-
+        row = _find_student(dispatcher, first_name, last_name)
         if row is None:
-            dispatcher.utter_message(
-                response="utter_student_not_found",
-                first_name=first_name,
-                last_name=last_name,
-            )
             return []
 
         dispatcher.utter_message(
