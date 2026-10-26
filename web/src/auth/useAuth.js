@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AUTH_URL, LOGOUT_URL } from "../endpoints.js";
+import { HttpError, isBackendDown } from "../chat/backend.js";
 import { checkCredentials } from "../demo/demoEngine.js";
 import { clearStoredUser, readStoredUser, storeUser } from "../storage/session.js";
 import { clearTranscripts } from "../storage/transcriptLog.js";
@@ -19,7 +20,7 @@ export function useAuth({ setUser, setInput, chat, voice, closeMenu }) {
       body: JSON.stringify({ username, password }),
     });
     if (res.status === 400 || res.status === 401) return "rejected";
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new HttpError(res.status);
     const data = await res.json();
     if (!data?.ok || !data.first_name || !data.last_name) {
       throw new Error("unexpected login response");
@@ -49,6 +50,12 @@ export function useAuth({ setUser, setInput, chat, voice, closeMenu }) {
         return;
       }
     } catch (err) {
+      if (!isBackendDown(err)) {
+        // The server answered but failed: say so instead of signing in offline.
+        console.error("[attendance-bot] sign-in failed", err);
+        setLoginError(`Sign-in failed on the server (${err?.message || err}). Please try again.`);
+        return;
+      }
       // Backend unreachable: check the credentials in the browser.
       const offline = checkCredentials(username, password);
       if (!offline) {
