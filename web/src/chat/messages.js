@@ -7,3 +7,11 @@ export function signedInMessage(user) {
     ts: Date.now(),
   };
 }
+
+export function serverErrorMessage(reason) {
+  return {
+    from: "system",
+    text: `Something went wrong on the server (${reason}). Please try again.`,
+    ts: Date.now(),
+  };
+}

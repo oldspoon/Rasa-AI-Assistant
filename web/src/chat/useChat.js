@@ -1,26 +1,13 @@
 import { useRef, useState } from "react";
 import { reply as demoReply } from "../demo/demoEngine.js";
-import { WEBHOOK } from "../endpoints.js";
 import { getSender, newSenderId, readStoredUser, saveSender } from "../storage/session.js";
 import { trackTurn } from "../storage/transcriptLog.js";
-import { signedInMessage } from "./messages.js";
+import { SessionExpired, isBackendDown, postChat as postWithToken } from "./backend.js";
+import { serverErrorMessage, signedInMessage } from "./messages.js";
 
-class SessionExpired extends Error {}
-
-// POST one chat message with the login token. A rejected token means the login is no longer valid.
-async function postChat(sender, message) {
-  const token = readStoredUser()?.token;
-  const res = await fetch(WEBHOOK, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ sender, message }),
-  });
-  if (res.status === 401 && token) throw new SessionExpired();
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res;
+// POST one chat message with the stored login token.
+function postChat(sender, message) {
+  return postWithToken(sender, message, readStoredUser()?.token);
 }
 
 // Chat state and the send path: live backend first, in-browser demo engine as fallback.
@@ -77,6 +64,14 @@ export function useChat({ user, busy, setBusy, stopDictation, closeMenu, onSessi
     } catch (err) {
       if (err instanceof SessionExpired) {
         onSessionExpired?.();
+        return;
+      }
+      if (!isBackendDown(err)) {
+        // The backend answered but failed: say so instead of hiding it behind the demo engine.
+        const reason = err?.message || String(err);
+        trackTurn(activeSender, "notice", `backend error (${reason})`, { engine: "rasa" });
+        setMessages((msgs) => [...msgs, serverErrorMessage(reason)]);
+        console.error("[attendance-bot] chat request failed", err);
         return;
       }
       // Backend unreachable: answer from the in-browser demo engine.
