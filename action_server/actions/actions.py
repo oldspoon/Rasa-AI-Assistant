@@ -4,7 +4,8 @@ Stateless: every turn re-queries the database, so no runtime-only slots.
 """
 
 import logging
-from typing import Any, Text, Dict, List
+from abc import ABC, abstractmethod
+from typing import Any
 
 from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
@@ -44,8 +45,8 @@ def _fetch_sessions(first_name: str, last_name: str) -> list:
     return db.fetch_all(sql, (first_name.strip(), last_name.strip()))
 
 
-def _fetch_parking_arrears(first_name: str, last_name: str) -> list | None:
-    """Unpaid charges, only on the campus the student attends. None if the database fails."""
+def _fetch_parking_arrears(first_name: str, last_name: str) -> list:
+    """Unpaid charges, only on the campus the student attends. Database errors propagate."""
     sql = """
         SELECT p.campus, p.location, p.license_plate, p.issued_at, p.fine_pence
         FROM parking_arrears p
@@ -58,11 +59,7 @@ def _fetch_parking_arrears(first_name: str, last_name: str) -> list | None:
           )
         ORDER BY p.issued_at
     """
-    try:
-        return db.fetch_all(sql, (first_name, last_name))
-    except Exception as exc:
-        logger.error("Database error in _fetch_parking_arrears: %s", exc)
-        return None
+    return db.fetch_all(sql, (first_name, last_name))
 
 
 def _signed_in_name(tracker: Tracker) -> tuple[str, str] | None:
@@ -89,16 +86,12 @@ def _get_full_name(tracker: Tracker) -> tuple[str, str]:
         return signed_in
 
     first = tracker.get_slot("first_name") or ""
-    last  = tracker.get_slot("last_name")  or ""
+    last = tracker.get_slot("last_name") or ""
+    if first and last:
+        return first, last
 
-    if not first or not last:
-        for ent in tracker.latest_message.get("entities", []) or []:
-            if ent.get("entity") == "first_name":
-                first = ent.get("value") or first
-            elif ent.get("entity") == "last_name":
-                last = ent.get("value") or last
-
-    return first, last
+    typed_first, typed_last = _typed_name(tracker)
+    return typed_first or first, typed_last or last
 
 
 def _find_student(
@@ -184,16 +177,15 @@ def _log_turn(tracker: Tracker, action_name: str) -> None:
 class ActionLookupStudent(Action):
     """Confirm a student who introduced themselves by name."""
 
-    def name(self) -> Text:
+    def name(self) -> str:
         return "action_lookup_student"
 
     def run(
         self,
         dispatcher: CollectingDispatcher,
         tracker: Tracker,
-        domain: Dict[Text, Any],
-    ) -> List[Dict[Text, Any]]:
-
+        domain: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         _log_turn(tracker, self.name())
 
         first_name, last_name = _get_full_name(tracker)
@@ -233,207 +225,110 @@ class ActionLookupStudent(Action):
         ]
 
 
-class ActionAnswerLectureDays(Action):
+class ScheduleAnswer(Action, ABC):
+    """Answer one question about the signed-in student's weekly schedule."""
 
-    def name(self) -> Text:
-        return "action_answer_lecture_days"
+    action_name: str
 
-    def run(
-        self,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: Dict[Text, Any],
-    ) -> List[Dict[Text, Any]]:
+    def name(self) -> str:
+        return self.action_name
 
-        _log_turn(tracker, self.name())
-
-        found = _sessions_or_error(dispatcher, tracker)
-        if found is None:
-            return []
-        student, sessions = found
-
-        dispatcher.utter_message(
-            text=schedule.session_day_message(
-                student["first_name"], schedule.session_of(sessions, "Lecture")
-            )
-        )
-        return []
-
-
-class ActionAnswerPracticalDays(Action):
-
-    def name(self) -> Text:
-        return "action_answer_practical_days"
+    @abstractmethod
+    def message(self, student: dict, sessions: list) -> str: ...
 
     def run(
         self,
         dispatcher: CollectingDispatcher,
         tracker: Tracker,
-        domain: Dict[Text, Any],
-    ) -> List[Dict[Text, Any]]:
-
+        domain: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         _log_turn(tracker, self.name())
 
         found = _sessions_or_error(dispatcher, tracker)
         if found is None:
             return []
-        student, sessions = found
 
-        dispatcher.utter_message(
-            text=schedule.session_day_message(
-                student["first_name"], schedule.session_of(sessions, "Practical")
-            )
-        )
+        dispatcher.utter_message(text=self.message(*found))
         return []
 
 
-class ActionAnswerCampus(Action):
+class ActionAnswerLectureDays(ScheduleAnswer):
+    action_name = "action_answer_lecture_days"
 
-    def name(self) -> Text:
-        return "action_answer_campus"
-
-    def run(
-        self,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: Dict[Text, Any],
-    ) -> List[Dict[Text, Any]]:
-
-        _log_turn(tracker, self.name())
-
-        found = _sessions_or_error(dispatcher, tracker)
-        if found is None:
-            return []
-        student, sessions = found
-
-        dispatcher.utter_message(
-            text=schedule.campus_message(student["first_name"], sessions)
+    def message(self, student, sessions):
+        return schedule.session_day_message(
+            student["first_name"], schedule.session_of(sessions, "Lecture")
         )
-        return []
 
 
-class ActionAnswerTime(Action):
+class ActionAnswerPracticalDays(ScheduleAnswer):
+    action_name = "action_answer_practical_days"
 
-    def name(self) -> Text:
-        return "action_answer_time"
-
-    def run(
-        self,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: Dict[Text, Any],
-    ) -> List[Dict[Text, Any]]:
-
-        _log_turn(tracker, self.name())
-
-        found = _sessions_or_error(dispatcher, tracker)
-        if found is None:
-            return []
-        student, sessions = found
-
-        dispatcher.utter_message(
-            text=schedule.time_message(student["first_name"], sessions)
+    def message(self, student, sessions):
+        return schedule.session_day_message(
+            student["first_name"], schedule.session_of(sessions, "Practical")
         )
-        return []
 
 
-class ActionAnswerSubject(Action):
+class ActionAnswerCampus(ScheduleAnswer):
+    action_name = "action_answer_campus"
 
-    def name(self) -> Text:
-        return "action_answer_subject"
+    def message(self, student, sessions):
+        return schedule.campus_message(student["first_name"], sessions)
 
-    def run(
-        self,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: Dict[Text, Any],
-    ) -> List[Dict[Text, Any]]:
 
-        _log_turn(tracker, self.name())
+class ActionAnswerTime(ScheduleAnswer):
+    action_name = "action_answer_time"
 
-        found = _sessions_or_error(dispatcher, tracker)
-        if found is None:
-            return []
-        student, sessions = found
+    def message(self, student, sessions):
+        return schedule.time_message(student["first_name"], sessions)
 
-        dispatcher.utter_message(
-            text=schedule.subject_message(student["first_name"], sessions)
+
+class ActionAnswerSubject(ScheduleAnswer):
+    action_name = "action_answer_subject"
+
+    def message(self, student, sessions):
+        return schedule.subject_message(student["first_name"], sessions)
+
+
+class ActionAnswerRoom(ScheduleAnswer):
+    action_name = "action_answer_room"
+
+    def message(self, student, sessions):
+        return schedule.room_message(student["first_name"], sessions)
+
+
+class ActionAnswerAllDetails(ScheduleAnswer):
+    action_name = "action_answer_all_details"
+
+    def message(self, student, sessions):
+        return "\n\n".join(
+            schedule.full_schedule_parts(student["first_name"], student["last_name"], sessions)
         )
-        return []
-
-
-class ActionAnswerRoom(Action):
-
-    def name(self) -> Text:
-        return "action_answer_room"
-
-    def run(
-        self,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: Dict[Text, Any],
-    ) -> List[Dict[Text, Any]]:
-
-        _log_turn(tracker, self.name())
-
-        found = _sessions_or_error(dispatcher, tracker)
-        if found is None:
-            return []
-        student, sessions = found
-
-        dispatcher.utter_message(
-            text=schedule.room_message(student["first_name"], sessions)
-        )
-        return []
-
-
-class ActionAnswerAllDetails(Action):
-
-    def name(self) -> Text:
-        return "action_answer_all_details"
-
-    def run(
-        self,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: Dict[Text, Any],
-    ) -> List[Dict[Text, Any]]:
-
-        _log_turn(tracker, self.name())
-
-        found = _sessions_or_error(dispatcher, tracker)
-        if found is None:
-            return []
-        student, sessions = found
-
-        parts = schedule.full_schedule_parts(
-            student["first_name"], student["last_name"], sessions
-        )
-        dispatcher.utter_message(text="\n\n".join(parts))
-        return []
 
 
 class ActionCheckParkingArrears(Action):
     """Tell the student about unpaid parking charges and offer ways to pay."""
 
-    def name(self) -> Text:
+    def name(self) -> str:
         return "action_check_parking_arrears"
 
     def run(
         self,
         dispatcher: CollectingDispatcher,
         tracker: Tracker,
-        domain: Dict[Text, Any],
-    ) -> List[Dict[Text, Any]]:
-
+        domain: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         _log_turn(tracker, self.name())
 
         student = _student_or_error(dispatcher, tracker)
         if student is None:
             return []
 
-        rows = _fetch_parking_arrears(student["first_name"], student["last_name"])
-        if rows is None:
+        try:
+            rows = _fetch_parking_arrears(student["first_name"], student["last_name"])
+        except Exception:
+            logger.exception("Database error while reading parking arrears")
             dispatcher.utter_message(response="utter_parking_unavailable")
             return []
 
